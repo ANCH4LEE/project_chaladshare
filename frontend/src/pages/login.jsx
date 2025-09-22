@@ -64,7 +64,7 @@ const Login = () => {
         navigate("/home");
       }
     } catch (error) {
-      setError("เชื่อมต่อ backend ไม่สำเร็จ");
+      setError("เชื่อมต่อไม่สำเร็จ");
       console.error("Login error:", error);
     }
   };
