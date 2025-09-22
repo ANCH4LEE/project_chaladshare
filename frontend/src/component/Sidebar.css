@@ -1,0 +1,61 @@
+.sidebar {
+  width: 250px;
+  background: #ffffff;
+  border-right: 1px solid #ddd;
+  height: 100vh;
+  padding: 20px 0 20px 0; /* top right bottom left */
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+.logo {
+  display: flex;
+  align-items: start;  /* ให้โลโก้ตรงกลางแนวตั้ง */
+  justify-content: flex-start; /* ชิดซ้าย */
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.logo img {
+  width: 120px;
+  height: auto;
+  display: block; /* ป้องกัน whitespace รอบรูป */
+}
+
+
+.menu {
+  list-style: none;
+  padding: 0;
+}
+
+.menu li {
+  padding: 12px;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 8px;
+  transition: background 0.2s;
+  color: #027CBB; /* กำหนดสีเมนูปกติ */
+  margin-bottom: 6px;
+}
+
+.menu li:hover {
+  background: #027CBB;
+  color: white;
+}
+
+.menu li svg {
+  font-size: 24px; /* ขนาดไอคอนใหญ่ขึ้น */
+  flex-shrink: 0;  /* ป้องกันไอคอนหดตัว */
+  font-weight: 700; /* ทำให้หนาขึ้น (บางไอคอนรองรับ) */
+}
+
+.menu li.active {
+  background: #027CBB;
+  color: white;
+}
+
+

@@ -1,0 +1,179 @@
+.post-detail {
+  display: flex;
+  flex-direction: column;
+  /* align-items: center; */
+  padding: 20px;
+  position: relative;
+  margin-left: 200px;
+  max-width: 1200px;
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  color: #e75480;
+  cursor: pointer;
+  font-size: 16px;
+  margin: 20px 0 10px 80px; 
+  position: absolute;      
+  left: 20px;            
+  top: 20px;               
+  z-index: 10;             
+}
+
+/* ปุ่ม Back */
+.back-btn {
+  display: flex;
+  align-items: center;
+  color: #e75480;
+  cursor: pointer;
+  font-size: 16px;
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  z-index: 10;
+}
+
+/* โปรไฟล์ */
+.user-info {
+  display: flex;
+  align-items: center;
+  position: absolute;   
+  top: 70px;            
+  left: 200px;
+  margin-bottom: 200px;      
+}
+
+.profile-img {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  margin-left: 10px;    /* ระยะห่างจากรูป */
+  text-align: left;
+}
+
+.user-details h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.user-details .status {
+  margin: 0;
+  font-size: 14px;
+  color: #555;
+}
+
+/* ปุ่ม share + bookmark */
+.post-actions {
+  position: absolute;
+  right: 350px;
+  top: 700px;
+  display: flex;
+  gap: 15px;
+}
+
+.action-icon {
+  cursor: pointer;
+}
+
+/* ส่วน like */
+.likes {
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+  margin-top: 20px;     /* ระยะห่างจาก dot */
+  margin-left: 300px;   /* ให้ตรงกับโปรไฟล์ */
+}
+
+.likes span {
+  margin-left: 6px;
+  color: #000;
+}
+
+/* ชื่อโพสต์ */
+.post-title {
+  text-align: center;
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 10px;
+  margin-left: -255px;
+}
+
+/* คำอธิบายโพสต์ */
+.description {
+  text-align: start;         /* จัดข้อความกึ่งกลาง */
+  font-size: 16px;
+  margin: 0 auto 0 auto;   /* เว้นขอบบนเล็กน้อย และ auto ซ้าย-ขวา */
+  max-width: 600px;           /* จำกัดความกว้างไม่ให้ยืดเกินไป */
+  line-height: 1.5;           /* เพิ่มระยะบรรทัดให้อ่านง่าย */
+  word-wrap: break-word;      /* บังคับตัดบรรทัดถ้ามีคำยาวๆ */
+}
+
+
+/* รูปโพสต์ */
+.post-image {
+  position: relative;
+  display: flex;             
+  justify-content: center;    
+  margin-top: 100px;
+}
+
+.post-image img {
+  width: 100%;
+  max-width: 400px; 
+  height: auto;
+  border-radius: 0;
+  display: block;
+}
+
+/* ปุ่มซ้าย/ขวา */
+.nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  color: white;
+  padding: 10px;
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+.nav-btn.left {
+  left: 350px;
+}
+
+.nav-btn.right {
+  right: 350px;
+}
+
+/* จุดบอกตำแหน่ง (dots) */
+.dots {
+  position: absolute;
+  bottom: 2px;       
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  background: #bbb;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.dot.active {
+  background: #333;
+}
+
+

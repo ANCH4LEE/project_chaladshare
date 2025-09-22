@@ -1,0 +1,131 @@
+body, html, #root {
+  height: 100%;
+  margin: 0;
+  font-family: sans-serif;
+  background-color: #f0f2f5;
+}
+
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+
+.login-box {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 10px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.1);
+  width: 350px;
+  text-align: center;
+}
+
+img {
+  width: 200px;
+  margin: 0 auto;
+  display: block;
+}
+
+.login-box input {
+  width: 300px;
+  margin: 4px 0;
+  padding: 0.8rem;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+}
+
+.input-group {
+  position: relative;
+  width: 250px;
+  margin-bottom: 10px;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 10px 40px 10px 48px; /* เว้นซ้ายให้ไอคอน */
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.input-group .icon {
+  position: absolute;
+  top: 55%;
+  left: 15px;
+  transform: translateY(-50%);
+  color: gray;
+  font-size: 20px;
+  pointer-events: none; /* ไม่ให้ไอคอนขัดขวางการคลิก input */
+}
+
+.icon-right {
+  position: absolute;
+  top: 50%;
+  right: -70px;
+  transform: translateY(-45%);
+  color: gray;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.forgot-password {
+  text-align: right;
+  margin-right: 1rem;
+  margin-bottom: 10px;
+}
+
+.forgot-password a {
+  font-size: 14px;
+  color: #3b82f6; 
+  text-decoration: none;
+}
+
+.forgot-password a:hover {
+  text-decoration: none;
+}
+
+.login-box button {
+  width: 345px;
+  margin: 3px 0;
+  padding: 0.7rem;
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight:bold;
+  font-size: 15px;
+}
+
+.login-box button:hover {
+  background-color: #357abd;
+}
+
+.ClickToRegis{
+  margin-top:15px;
+}
+
+.ClickToRegis a,
+.ClickToRegis p {
+  display: inline;
+  margin-right: 8px;
+}
+
+.ClickToRegis a{
+  color: #3b82f6; 
+  text-decoration: none;
+  font-weight:bold;
+}
+
+/* ปิดไอคอนแสดงรหัสผ่านที่ Edge หรือ Chrome ใส่มาเอง */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear,
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-password-toggle-button {
+  display: none !important;
+  pointer-events: none;
+  opacity: 0;
+}
+
