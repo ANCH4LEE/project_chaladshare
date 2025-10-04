@@ -1,11 +1,15 @@
-import React from "react";
+import React ,{useState} from "react";
 import { useNavigate } from "react-router-dom";
+import { IoSearch } from "react-icons/io5";
+import { AiFillHeart, AiOutlineHeart } from "react-icons/ai";
 import "../component/Home.css"; // import CSS ของ Home
 import Sidebar from "./Sidebar";
+import PostCard from "../component/Postcard";
+import RecommendedCard from "../component/RecomCard";
 
 const Home = () => {
   // ข้อมูลโพสต์ยอดนิยม
-  const popularPosts = [
+  const [popularPosts, setPopularPosts] = useState([
     {
       img: "img/1.jpg",
       likes: 123,
@@ -30,10 +34,10 @@ const Home = () => {
       authorName: "Chaiwat",
       authorImg: "img/author2.jpg",
     },
-  ];
+  ]);
 
   // ข้อมูลแนะนำสรุปน่าอ่าน
-  const recommendedPosts = [
+ const [recommendedPosts, setRecommendedPosts] = useState([
     {
       img: "img/4.jpg",
       likes: 1006,
@@ -58,13 +62,11 @@ const Home = () => {
       authorName: "Chaiwat",
       authorImg: "img/author2.jpg",
     },
-  ];
+  ]);
 
   const navigate = useNavigate(); // เพิ่มตรงนี้ข้างบน goToPostDetail
-  const goToPostDetail = (post) => {
-    if (post.title === "UML") {
-      navigate(`/post/${post.title}`); // หรือใช้ postId ก็ได้
-    }
+   const goToPostDetail = (post) => {
+    navigate(`/post/${post.title}`); // ตอนนี้ใช้ title เป็น id mock
   };
 
   return (
@@ -77,30 +79,15 @@ const Home = () => {
         {/* Search bar */}
         <div className="search-bar">
           <input type="text" placeholder="ค้นหาความสนใจของคุณ" />
-          <i className="fas fa-search"></i>
+          <IoSearch />
         </div>
 
         {/* โพสต์ยอดนิยม */}
         <h3>โพสต์สรุปยอดเยี่ยมประจำเดือน</h3>
         <div className="card-list">
           {popularPosts.map((post, index) => (
-            <div
-              className="card"
-              key={index}
-              onClick={() => goToPostDetail(post)}
-              style={{ cursor: post.title === "UML" ? "pointer" : "default" }}
-            >
-              {/* โปรไฟล์อยู่ด้านบน */}
-              <div className="card-header">
-                <img src={post.authorImg} alt="author" className="author-img" />
-                <span>{post.authorName}</span>
-              </div>
-              <img src={post.img} alt="summary" />
-              <div className="card-body">
-                <span className="likes">❤️ {post.likes}</span>
-                <h4>{post.title}</h4>
-                <p>{post.tags}</p>
-              </div>
+            <div key={index} onClick={() => goToPostDetail(post)} style={{ cursor: "pointer" }}>
+              <RecommendedCard post={post} rank={index + 1} />
             </div>
           ))}
         </div>
@@ -109,22 +96,8 @@ const Home = () => {
         <h3>แนะนำสรุปน่าอ่าน</h3>
         <div className="card-list">
           {recommendedPosts.map((post, index) => (
-            <div className="card" key={index}>
-              <img src={post.img} alt="summary" />
-              <div className="card-body">
-                <span className="likes">❤️ {post.likes}</span>
-                <h4>{post.title}</h4>
-                <p>{post.tags}</p>
-                {/* โปรไฟล์อยู่ด้านล่าง */}
-                <div className="card-footer">
-                  <img
-                    src={post.authorImg}
-                    alt="author"
-                    className="author-img"
-                  />
-                  <span>{post.authorName}</span>
-                </div>
-              </div>
+            <div key={index} onClick={() => goToPostDetail(post)} style={{ cursor: "pointer" }}>
+              <PostCard post={post} />
             </div>
           ))}
         </div>

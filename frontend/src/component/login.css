@@ -44,7 +44,7 @@ img {
 
 .input-group input {
   width: 100%;
-  padding: 10px 40px 10px 48px; /* เว้นซ้ายให้ไอคอน */
+  padding: 10px 40px 10px 48px; 
   border: 1px solid #ccc;
   border-radius: 10px;
   font-size: 14px;
@@ -57,7 +57,7 @@ img {
   transform: translateY(-50%);
   color: gray;
   font-size: 20px;
-  pointer-events: none; /* ไม่ให้ไอคอนขัดขวางการคลิก input */
+  pointer-events: none; 
 }
 
 .icon-right {
@@ -78,7 +78,7 @@ img {
 
 .forgot-password a {
   font-size: 14px;
-  color: #3b82f6; 
+  color: #027CBB; 
   text-decoration: none;
 }
 
@@ -90,7 +90,7 @@ img {
   width: 345px;
   margin: 3px 0;
   padding: 0.7rem;
-  background-color: #4a90e2;
+  background-color: #027CBB;
   color: white;
   border: none;
   border-radius: 10px;
@@ -114,7 +114,7 @@ img {
 }
 
 .ClickToRegis a{
-  color: #3b82f6; 
+  color: #027CBB; 
   text-decoration: none;
   font-weight:bold;
 }
