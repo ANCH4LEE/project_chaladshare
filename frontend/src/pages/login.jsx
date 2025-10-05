@@ -6,8 +6,7 @@ import { BsEye, BsEyeSlash } from "react-icons/bs";
 
 const Login = () => {
   const [formData, setForm] = useState({
-    userEmail: "",
-    // username: "",
+    email: "",
     password: "",
   });
 
@@ -31,11 +30,11 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.userEmail) {
+    if (!formData.email) {
       setError("กรุณากรอกอีเมล");
       return;
     }
-    if (!validateEmail(formData.userEmail)) {
+    if (!validateEmail(formData.email)) {
       setError("รูปแบบอีเมลไม่ถูกต้อง");
       return;
     }
@@ -51,7 +50,7 @@ const Login = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          userEmail: formData.userEmail,
+          email: formData.email,
           password: formData.password,
         }),
       });
@@ -91,8 +90,8 @@ const Login = () => {
             </span>
             <input
               type="email"
-              name="userEmail"
-              value={formData.userEmail}
+              name="email"
+              value={formData.email}
               onChange={handleChange}
               placeholder="Email"
               required
