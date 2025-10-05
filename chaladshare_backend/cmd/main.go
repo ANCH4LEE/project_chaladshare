@@ -15,6 +15,10 @@ import (
 	authHandler "chaladshare_backend/internal/auth/handlers"
 	authRepo "chaladshare_backend/internal/auth/repository"
 	authService "chaladshare_backend/internal/auth/service"
+
+	FileHandler "chaladshare_backend/internal/files/handlers"
+	FileRepo "chaladshare_backend/internal/files/repository"
+	FileService "chaladshare_backend/internal/files/service"
 )
 
 func TimeoutMiddleware(timeout time.Duration) gin.HandlerFunc {
@@ -41,10 +45,15 @@ func main() {
 	}
 	defer db.Close()
 
-	//repo service handler
+	//auth repo service handler
 	authRepository := authRepo.NewUserRepository(db.GetDB())
 	authService := authService.NewAuthService(authRepository)
 	authHandler := authHandler.NewAuthHandler(authService)
+
+	//file repo service handler
+	fileRepository := FileRepo.NewFileRepository(db.GetDB())
+	fileService := FileService.NewFileService(fileRepository)
+	fileHandler := FileHandler.NewFileHandler(fileService)
 
 	go func() {
 		for {
@@ -95,8 +104,17 @@ func main() {
 	// 	protected.GET("/profile", authHandler.GetProfile)
 	// }
 
-	// // ---------- Run Server ----------
-	// if err := r.Run(":" + cfg.AppPort); err != nil {
-	// 	log.Fatalf("Failed to run server: %v", err)
-	// }
+	//file
+	fileRoutes := v1.Group("/files")
+	{
+		fileRoutes.POST("/upload", fileHandler.UploadFile)
+		fileRoutes.GET("/user/:user_id", fileHandler.GetFilesByUserID)
+		fileRoutes.POST("/summary", fileHandler.SaveSummary)
+		fileRoutes.GET("/summary/:document_id", fileHandler.GetSummaryByDocumentID)
+	}
+
+	//Run Server
+	if err := r.Run(":" + cfg.AppPort); err != nil {
+		log.Fatalf("Failed to run server: %v", err)
+	}
 }

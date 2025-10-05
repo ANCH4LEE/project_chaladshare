@@ -31,8 +31,16 @@ func (r *authRepository) GetUserByEmail(email string) (*models.User, error) {
 		WHERE email = $1
 	`
 	var user models.User
-	err := r.db.QueryRow(query, email).
-		Scan(&user.ID, &user.Email, &user.Username, &user.Password, &user.CreatedAt)
+	var userStatus string // สำหรับรับค่า user_status เพิ่ม
+
+	err := r.db.QueryRow(query, email).Scan(
+		&user.ID,
+		&user.Email,
+		&user.Username,
+		&user.PasswordHash,
+		&user.CreatedAt,
+		&userStatus,
+	)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -40,6 +48,7 @@ func (r *authRepository) GetUserByEmail(email string) (*models.User, error) {
 		}
 		return nil, fmt.Errorf("query error: %v", err)
 	}
+
 	return &user, nil
 }
 
@@ -50,7 +59,7 @@ func (r *authRepository) CreateUser(user *models.User) error {
 		VALUES ($1, $2, $3)
 		RETURNING user_id, user_created_at
 	`
-	err := r.db.QueryRow(query, user.Email, user.Username, user.Password).
+	err := r.db.QueryRow(query, user.Email, user.Username, user.PasswordHash).
 		Scan(&user.ID, &user.CreatedAt)
 
 	if err != nil {

@@ -36,11 +36,10 @@ func (s *authService) Register(req *models.RegisterRequest) (*models.AuthRespons
 		return nil, fmt.Errorf("ไม่สามารถเข้ารหัสผ่านได้: %v", err)
 	}
 
-	//สร้าง struct user เก็บลง DB
 	user := &models.User{
-		Email:    req.Email,
-		Username: req.Username,
-		Password: string(hashedPassword),
+		Email:        req.Email,
+		Username:     req.Username,
+		PasswordHash: string(hashedPassword),
 	}
 
 	//บันทึกลง BD ผ่าน repository
@@ -71,7 +70,7 @@ func (s *authService) Login(req *models.LoginRequest) (*models.AuthResponse, err
 	}
 
 	// ตรวจสอบรหัสผ่าน
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
 		return nil, errors.New("รหัสผ่านไม่ถูกต้อง")
 	}
 
