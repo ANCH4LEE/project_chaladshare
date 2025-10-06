@@ -19,6 +19,10 @@ import (
 	FileHandler "chaladshare_backend/internal/files/handlers"
 	FileRepo "chaladshare_backend/internal/files/repository"
 	FileService "chaladshare_backend/internal/files/service"
+
+	postHandler "chaladshare_backend/internal/posts/handlers"
+	postRepo "chaladshare_backend/internal/posts/repository"
+	postSrv "chaladshare_backend/internal/posts/service"
 )
 
 func TimeoutMiddleware(timeout time.Duration) gin.HandlerFunc {
@@ -54,6 +58,17 @@ func main() {
 	fileRepository := FileRepo.NewFileRepository(db.GetDB())
 	fileService := FileService.NewFileService(fileRepository)
 	fileHandler := FileHandler.NewFileHandler(fileService)
+
+	//post repo service handler
+	postRepository := postRepo.NewPostRepository(db.GetDB())
+	likeRepository := postRepo.NewLikeRepository(db.GetDB())
+	saveRepository := postRepo.NewSaveRepository(db.GetDB())
+
+	postService := postSrv.NewPostService(postRepository)
+	likeService := postSrv.NewLikeService(likeRepository)
+	saveService := postSrv.NewSaveService(saveRepository)
+
+	postHandler := postHandler.NewPostHandler(postService, likeService, saveService)
 
 	go func() {
 		for {
@@ -111,6 +126,22 @@ func main() {
 		fileRoutes.GET("/user/:user_id", fileHandler.GetFilesByUserID)
 		fileRoutes.POST("/summary", fileHandler.SaveSummary)
 		fileRoutes.GET("/summary/:document_id", fileHandler.GetSummaryByDocumentID)
+	}
+
+	//post liked saved
+	postRoutes := v1.Group("/posts")
+	{
+		postRoutes.POST("/", postHandler.CreatePost)
+		postRoutes.GET("/", postHandler.GetAllPosts)
+		postRoutes.GET("/:id", postHandler.GetPostByID)
+		postRoutes.PUT("/:id", postHandler.UpdatePost)
+		postRoutes.DELETE("/:id", postHandler.DeletePost)
+
+		postRoutes.POST("/:id/like", postHandler.LikePost)
+		postRoutes.DELETE("/:id/like", postHandler.UnlikePost)
+
+		postRoutes.POST("/:id/save", postHandler.SavePost)
+		postRoutes.DELETE("/:id/save", postHandler.UnsavePost)
 	}
 
 	//Run Server
