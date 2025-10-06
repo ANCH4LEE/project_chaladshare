@@ -1,0 +1,153 @@
+.create-post-container {
+  margin-left: 230px; /* มี sidebar ทางซ้าย */
+  padding: 30px 50px;
+  background-color: #f7f9fc;
+  min-height: 100vh;
+}
+
+.create-title {
+  color: #0070c0;
+  font-size: 24px;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.create-form {
+  background: #fff;
+  padding: 30px 40px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.form-group {
+  margin-bottom: 25px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.required {
+  color: red;
+  margin-left: 5px;
+}
+
+.title-row {
+  display: flex;
+  gap: 10px;
+}
+
+.title-row input {
+  flex: 1;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 15px;
+  outline: none;
+}
+
+.title-row select {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 15px;
+  background: #fff;
+}
+
+/* กล่องอัปโหลด */
+.upload-box {
+  border: 2px dashed #ff6584;
+  border-radius: 10px;
+  padding: 40px;
+  text-align: center;
+  cursor: pointer;
+  background-color: #fff8fa;
+  position: relative;
+}
+
+.upload-box input[type="file"] {
+  display: none;
+}
+
+.upload-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-icon {
+  width: 60px;
+  opacity: 0.8;
+}
+
+.upload-label p {
+  margin-top: 10px;
+  font-weight: 500;
+  color: #555;
+}
+
+/* textarea */
+textarea {
+  width: 100%;
+  min-height: 120px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 15px;
+  outline: none;
+  resize: vertical;
+}
+
+/* input tag */
+input[type="text"] {
+  width: 100%;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 15px;
+  outline: none;
+}
+
+/* ปุ่ม */
+.button-group {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 30px;
+}
+
+.btn-cancel,
+.btn-submit {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 25px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-cancel {
+  background: #fff;
+  border: 1px solid #ff6584;
+  color: #ff6584;
+}
+
+.btn-cancel:hover {
+  background: #ffeaf0;
+}
+
+.btn-submit {
+  background: #0070c0;
+  color: #fff;
+}
+
+.btn-submit:hover {
+  background: #005fa3;
+}

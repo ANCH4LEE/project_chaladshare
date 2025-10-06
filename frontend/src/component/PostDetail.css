@@ -84,18 +84,21 @@
 }
 
 /* ส่วน like */
-.likes {
+.detail-likes {
   display: flex;
   align-items: center;
   font-size: 16px;
-  margin-top: 20px;     /* ระยะห่างจาก dot */
-  margin-left: 300px;   /* ให้ตรงกับโปรไฟล์ */
+  margin-top: 20px;     
+  margin-left: 300px;  
 }
 
-.likes span {
+.detail-likes span {
   margin-left: 6px;
   color: #000;
 }
+
+
+
 
 /* ชื่อโพสต์ */
 .post-title {

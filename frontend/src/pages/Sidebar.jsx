@@ -20,7 +20,7 @@ const Sidebar = () => {
         <li onClick={() => navigate("/home")} style={{ cursor: "pointer" }}>
           <RiHome2Line /> หน้าหลัก
         </li>
-        <li onClick={() => navigate("/home")} style={{ cursor: "pointer" }}>
+        <li onClick={() => navigate("/newpost")} style={{ cursor: "pointer" }}>
           <IoMdAddCircleOutline /> สร้าง</li>
         <li onClick={() => navigate("/home")} style={{ cursor: "pointer" }}>
           <HiOutlineSparkles /> AI ช่วยสรุป</li>

@@ -1,11 +1,10 @@
-import React ,{useState} from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { IoSearch } from "react-icons/io5";
-import { AiFillHeart, AiOutlineHeart } from "react-icons/ai";
-import "../component/Home.css"; // import CSS ของ Home
+import "../component/Home.css";
 import Sidebar from "./Sidebar";
 import PostCard from "../component/Postcard";
-import RecommendedCard from "../component/RecomCard";
+import RankingCard from "../component/RankingCard";
 
 const Home = () => {
   // ข้อมูลโพสต์ยอดนิยม
@@ -37,7 +36,7 @@ const Home = () => {
   ]);
 
   // ข้อมูลแนะนำสรุปน่าอ่าน
- const [recommendedPosts, setRecommendedPosts] = useState([
+  const [recommendedPosts, setRecommendedPosts] = useState([
     {
       img: "img/4.jpg",
       likes: 1006,
@@ -64,10 +63,17 @@ const Home = () => {
     },
   ]);
 
-  const navigate = useNavigate(); // เพิ่มตรงนี้ข้างบน goToPostDetail
-   const goToPostDetail = (post) => {
+  const navigate = useNavigate();
+  const goToPostDetail = (post) => {
     navigate(`/post/${post.title}`); // ตอนนี้ใช้ title เป็น id mock
   };
+
+  // ✅ เรียงโพสต์ยอดนิยมจากไลก์มาก→น้อย แล้วแปะ rank 1..N
+  const rankedPopular = useMemo(() => {
+    return popularPosts
+      .slice() // กัน side-effect ไม่แก้ array เดิม
+      .sort((a, b) => b.likes - a.likes);
+  }, [popularPosts]);
 
   return (
     <div className="home-container">
@@ -85,9 +91,13 @@ const Home = () => {
         {/* โพสต์ยอดนิยม */}
         <h3>โพสต์สรุปยอดเยี่ยมประจำเดือน</h3>
         <div className="card-list">
-          {popularPosts.map((post, index) => (
-            <div key={index} onClick={() => goToPostDetail(post)} style={{ cursor: "pointer" }}>
-              <RecommendedCard post={post} rank={index + 1} />
+          {rankedPopular.map((post, index) => (
+            <div
+              key={index}
+              onClick={() => goToPostDetail(post)}
+              style={{ cursor: "pointer" }}
+            >
+              <RankingCard post={post} rank={index + 1} />
             </div>
           ))}
         </div>
@@ -96,7 +106,11 @@ const Home = () => {
         <h3>แนะนำสรุปน่าอ่าน</h3>
         <div className="card-list">
           {recommendedPosts.map((post, index) => (
-            <div key={index} onClick={() => goToPostDetail(post)} style={{ cursor: "pointer" }}>
+            <div
+              key={index}
+              onClick={() => goToPostDetail(post)}
+              style={{ cursor: "pointer" }}
+            >
               <PostCard post={post} />
             </div>
           ))}
