@@ -1,8 +1,13 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import "../component/login.css";
+import axios from "axios";
+
+import "../component/Login.css";
+import bg from "../assets/bg.jpg";
+import logo from "../assets/logo.png";
+
 import { MdOutlineAlternateEmail, MdLockOutline } from "react-icons/md";
-import { BsEye, BsEyeSlash } from "react-icons/bs";
+import { VscEye, VscEyeClosed } from "react-icons/vsc";
 import { BiUser } from "react-icons/bi";
 
 const Register = () => {
@@ -30,7 +35,7 @@ const Register = () => {
     });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
 
     if (!formData.userEmail) {
@@ -50,80 +55,126 @@ const Register = () => {
       return;
     }
 
-    try {
-      const response = await fetch("http://localhost:8080/api/v1/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: formData.userEmail,
-          username: formData.username,
-          password: formData.password,
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        setError(data.error || "เกิดข้อผิดพลาดในการสมัครสมาชิก");
-      } else {
-        alert("สมัครสมาชิกสำเร็จ");
-        navigate("/home");
-      }
-    } catch (err) {
-      setError("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
-      console.error("Register error:", err);
-    }
+  axios
+    .post("http://localhost:8080/api/v1/auth/register", {
+      email: formData.userEmail,
+      username: formData.username,
+      password: formData.password,
+    })
+    .then((response) => {
+      console.log("Register success:", response.data);
+      alert("สมัครสมาชิกสำเร็จ!");
+      setError("");
+      navigate("/home");
+    })
+    .catch((error) => {
+      console.error("Register error:", error);
+      setError(error.response?.data?.error || "เกิดข้อผิดพลาดในการสมัครสมาชิก");
+    });
   };
 
   return (
-    <div className="container" style={{
-      backgroundImage: 'url("/img/bg.jpg")',
-      backgroundSize: "cover",
-      backgroundPosition: "center",
-      backgroundRepeat: "no-repeat",
-    }}>
-      <div className="login-box">
-        <img src="/img/chalad share.png" alt="Logo" />
-        <h2>สมัครสมาชิก</h2>
+    <div className="register-page">
+      <div
+        className="register-container"
+        style={{
+          backgroundImage: `url(${bg})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+        }}
+      >
+        <div className="login-box">
+          <img src={logo} alt="Logo" />
+          <h2>สมัครสมาชิก</h2>
 
-        <form onSubmit={handleSubmit}>
-          <div className="input-group">
-            <span className="icon"><MdOutlineAlternateEmail /></span>
-            <input type="email" name="userEmail" value={formData.userEmail} onChange={handleChange} placeholder="Email" required />
+          <form onSubmit={handleSubmit}>
+            <div className="input-group">
+              <span className="icon">
+                <MdOutlineAlternateEmail />
+              </span>
+              <input
+                type="email"
+                name="userEmail"
+                value={formData.userEmail}
+                onChange={handleChange}
+                placeholder="Email"
+                required
+              />
+            </div>
+
+            <div className="input-group">
+              <span className="icon">
+                <BiUser />
+              </span>
+              <input
+                type="text"
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                placeholder="Username"
+                required
+              />
+            </div>
+
+            <div className="input-group" style={{ position: "relative" }}>
+              <span className="icon">
+                <MdLockOutline />
+              </span>
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Password"
+                required
+              />
+              <span
+                className="icon-right"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{ cursor: "pointer" }}
+              >
+                {showPassword ? <VscEyeClosed /> : <VscEye />}
+              </span>
+            </div>
+
+            <div className="input-group" style={{ position: "relative" }}>
+              <span className="icon">
+                <MdLockOutline />
+              </span>
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                name="confirmpassword"
+                value={formData.confirmpassword}
+                onChange={handleChange}
+                placeholder="Confirm password"
+                required
+              />
+              <span
+                className="icon-right"
+                onClick={() => setshowConfirmPassword(!showConfirmPassword)}
+                style={{ cursor: "pointer" }}
+              >
+                {showConfirmPassword ? <VscEyeClosed /> : <VscEye />}
+              </span>
+            </div>
+
+            {error && (
+              <p style={{ color: "red", marginBottom: "10px" }}>{error}</p>
+            )}
+
+            <button
+              type="submit"
+              className="mb-3 p-2 border border-gray-300 rounded"
+            >
+              สมัครสมาชิก
+            </button>
+          </form>
+
+          <div className="ClickToRegis">
+            <p>คุณมีบัญชีแล้ว?</p>
+            <Link to="/">เข้าสู่ระบบ</Link>
           </div>
-
-          <div className="input-group">
-            <span className="icon"><BiUser /></span>
-            <input type="text" name="username" value={formData.username} onChange={handleChange} placeholder="Username" required />
-          </div>
-
-          <div className="input-group" style={{ position: "relative" }}>
-            <span className="icon"><MdLockOutline /></span>
-            <input type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} placeholder="Password" required />
-            <span className="icon-right" onClick={() => setShowPassword(!showPassword)} style={{ cursor: "pointer" }}>
-              {showPassword ? <BsEyeSlash /> : <BsEye />}
-            </span>
-          </div>
-
-          <div className="input-group" style={{ position: "relative" }}>
-            <span className="icon"><MdLockOutline /></span>
-            <input type={showConfirmPassword ? "text" : "password"} name="confirmpassword" value={formData.confirmpassword} onChange={handleChange} placeholder="Confirm password" required />
-            <span className="icon-right" onClick={() => setshowConfirmPassword(!showConfirmPassword)} style={{ cursor: "pointer" }}>
-              {showConfirmPassword ? <BsEyeSlash /> : <BsEye />}
-            </span>
-          </div>
-
-          {error && <p style={{ color: "red", marginBottom: "10px" }}>{error}</p>}
-
-          <button type="submit" className="mb-3 p-2 border border-gray-300 rounded">
-            สมัครสมาชิก
-          </button>
-        </form>
-
-        <div className="ClickToRegis">
-          <p>คุณมีบัญชีแล้ว?</p>
-          <Link to="/">เข้าสู่ระบบ</Link>
         </div>
       </div>
     </div>

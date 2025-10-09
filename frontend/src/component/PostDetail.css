@@ -1,77 +1,71 @@
-.post-detail {
+/*หน้า PostDetail.css ( โดย prefix )*/
+
+
+.post-detail-page .post-detail {
   display: flex;
   flex-direction: column;
-  /* align-items: center; */
   padding: 20px;
   position: relative;
   margin-left: 200px;
   max-width: 1200px;
 }
 
-.back-btn {
-  display: flex;
-  align-items: center;
-  color: #e75480;
-  cursor: pointer;
-  font-size: 16px;
-  margin: 20px 0 10px 80px; 
-  position: absolute;      
-  left: 20px;            
-  top: 20px;               
-  z-index: 10;             
-}
-
 /* ปุ่ม Back */
-.back-btn {
+.post-detail-page .back-btn {
   display: flex;
   align-items: center;
   color: #e75480;
   cursor: pointer;
   font-size: 16px;
+  margin: 20px 0 10px 80px;
   position: absolute;
   left: 20px;
   top: 20px;
   z-index: 10;
 }
 
-/* โปรไฟล์ */
-.user-info {
-  display: flex;
-  align-items: center;
-  position: absolute;   
-  top: 70px;            
-  left: 200px;
-  margin-bottom: 200px;      
+.post-detail-page .back-btn:hover {
+  color: #ff7b9c;
 }
 
-.profile-img {
+/* โปรไฟล์ */
+.post-detail-page .user-info {
+  display: flex;
+  align-items: center;
+  position: absolute;
+  top: 70px;
+  left: 200px;
+  margin-bottom: 200px;
+}
+
+.post-detail-page .profile-img {
   width: 45px;
   height: 45px;
   border-radius: 50%;
   object-fit: cover;
 }
 
-.user-details {
+.post-detail-page .user-details {
   display: flex;
   flex-direction: column;
-  margin-left: 10px;    /* ระยะห่างจากรูป */
+  margin-left: 10px;
   text-align: left;
 }
 
-.user-details h4 {
+.post-detail-page .user-details h4 {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
 }
 
-.user-details .status {
+.post-detail-page .user-details .status {
   margin: 0;
   font-size: 14px;
   color: #555;
 }
 
 /* ปุ่ม share + bookmark */
-.post-actions {
+.post-detail-page .post-actions {
   position: absolute;
   right: 350px;
   top: 700px;
@@ -79,29 +73,32 @@
   gap: 15px;
 }
 
-.action-icon {
+.post-detail-page .action-icon {
   cursor: pointer;
+  transition: 0.2s;
+}
+
+.post-detail-page .action-icon:hover {
+  color: #0070c0;
 }
 
 /* ส่วน like */
-.detail-likes {
+.post-detail-page .detail-likes {
   display: flex;
   align-items: center;
   font-size: 16px;
-  margin-top: 20px;     
-  margin-left: 300px;  
+  margin-top: 20px;
+  margin-left: 300px;
+  cursor: pointer;
 }
 
-.detail-likes span {
+.post-detail-page .detail-likes span {
   margin-left: 6px;
   color: #000;
 }
 
-
-
-
 /* ชื่อโพสต์ */
-.post-title {
+.post-detail-page .post-title {
   text-align: center;
   font-size: 20px;
   font-weight: bold;
@@ -110,34 +107,35 @@
 }
 
 /* คำอธิบายโพสต์ */
-.description {
-  text-align: start;         /* จัดข้อความกึ่งกลาง */
+.post-detail-page .description {
+  text-align: start;
   font-size: 16px;
-  margin: 0 auto 0 auto;   /* เว้นขอบบนเล็กน้อย และ auto ซ้าย-ขวา */
-  max-width: 600px;           /* จำกัดความกว้างไม่ให้ยืดเกินไป */
-  line-height: 1.5;           /* เพิ่มระยะบรรทัดให้อ่านง่าย */
-  word-wrap: break-word;      /* บังคับตัดบรรทัดถ้ามีคำยาวๆ */
+  margin: 0 auto;
+  max-width: 600px;
+  line-height: 1.5;
+  word-wrap: break-word;
+  color: #333;
 }
 
-
 /* รูปโพสต์ */
-.post-image {
+.post-detail-page .post-image {
   position: relative;
-  display: flex;             
-  justify-content: center;    
+  display: flex;
+  justify-content: center;
   margin-top: 100px;
 }
 
-.post-image img {
+.post-detail-page .post-image img {
   width: 100%;
-  max-width: 400px; 
+  max-width: 400px;
   height: auto;
-  border-radius: 0;
+  border-radius: 8px;
   display: block;
+  box-shadow: 0px 3px 8px rgba(0, 0, 0, 0.15);
 }
 
 /* ปุ่มซ้าย/ขวา */
-.nav-btn {
+.post-detail-page .nav-btn {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
@@ -147,36 +145,41 @@
   padding: 10px;
   cursor: pointer;
   border-radius: 50%;
+  transition: 0.2s;
 }
 
-.nav-btn.left {
+.post-detail-page .nav-btn:hover {
+  background: #0070c0;
+}
+
+.post-detail-page .nav-btn.left {
   left: 350px;
 }
 
-.nav-btn.right {
+.post-detail-page .nav-btn.right {
   right: 350px;
 }
 
 /* จุดบอกตำแหน่ง (dots) */
-.dots {
+.post-detail-page .dots {
   position: absolute;
-  bottom: 2px;       
+  bottom: 2px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   gap: 8px;
 }
 
-.dot {
+.post-detail-page .dot {
   width: 10px;
   height: 10px;
   background: #bbb;
   border-radius: 50%;
   cursor: pointer;
+  transition: 0.2s;
 }
 
-.dot.active {
+.post-detail-page .dot.active {
   background: #333;
+  transform: scale(1.2);
 }
-
-

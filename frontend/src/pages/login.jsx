@@ -1,11 +1,16 @@
 import React, { useState } from "react";
 import { useNavigate,Link } from "react-router-dom";
-import "../component/login.css";
+import axios from "axios";
+
 import { MdOutlineAlternateEmail, MdLockOutline } from "react-icons/md";
-import { BsEye, BsEyeSlash } from "react-icons/bs";
+import { VscEye, VscEyeClosed } from "react-icons/vsc";
+
+import "../component/Login.css";
+import bg from "../assets/bg.jpg";
+import logo from "../assets/logo.png";
 
 const Login = () => {
-  const [formData, setForm] = useState({
+  const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
@@ -21,13 +26,13 @@ const Login = () => {
   };
 
   const handleChange = (e) => {
-    setForm({
+    setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
 
     if (!formData.email) {
@@ -43,43 +48,31 @@ const Login = () => {
       return;
     }
 
-    try {
-      const response = await fetch("http://localhost:8080/api/v1/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        setError(data.error || "เกิดข้อผิดพลาด");
-      } else {
+    axios
+      .post("http://localhost:8080/api/v1/auth/login", formData)
+      .then((response) => {
+        console.log("Login success:", response.data);
         setError("");
         navigate("/home");
-      }
-    } catch (error) {
-      setError("เชื่อมต่อไม่สำเร็จ");
-      console.error("Login error:", error);
-    }
+      })
+      .catch((error) => {
+        console.error("Login error:", error);
+        setError(error.response?.data?.error || "เข้าสู่ระบบไม่สำเร็จ");
+      });
   };
 
   return (
+    <div className="login-page">
     <div
-      className="container"
-      style={{
-        backgroundImage: 'url("/img/bg.jpg")',
+      className="login-container" style={{
+        backgroundImage: `url(${bg})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
       }}
     >
       <div className="login-box">
-        <img src="/img/chalad share.png" alt="Logo" />
+        <img src={logo} alt="Logo" />
         <h2>เข้าสู่ระบบ</h2>
 
         <form onSubmit={handleSubmit}>
@@ -100,10 +93,8 @@ const Login = () => {
           </div>
 
           {/* password */}
-          <div className="input-group" style={{ position: "relative" }}>
-            <span className="icon">
-              <MdLockOutline />
-            </span>
+          <div className="input-group">
+            <span className="icon"><MdLockOutline /></span>
             <input
               type={showPassword ? "text" : "password"}
               name="password"
@@ -115,9 +106,8 @@ const Login = () => {
             <span
               className="icon-right"
               onClick={() => setShowPassword(!showPassword)}
-              style={{ cursor: "pointer" }}
             >
-              {showPassword ? <BsEyeSlash /> : <BsEye />}
+              {showPassword ? <VscEyeClosed /> : <VscEye />}
             </span>
           </div>
 
@@ -134,7 +124,7 @@ const Login = () => {
           </button>
             {/* error message */}
           {error && (
-            <p style={{ color: "red", fontsize: "15px", marginBottom: "1rem" }}>
+            <p style={{ color: "red", fontSize: "15px", marginBottom: "1rem" }}>
               {error}
             </p>
           )}
@@ -145,6 +135,7 @@ const Login = () => {
           <Link to="/register">สมัครสมาชิก</Link>
         </div>
       </div>
+    </div>
     </div>
   );
 };

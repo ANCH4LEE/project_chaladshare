@@ -1,4 +1,6 @@
-.home {
+/*หน้า Home.css ( โดย prefix )*/
+
+.home-page .home {
   margin-left: 230px; /* สำหรับ Sidebar */
   padding: 20px;
   display: flex;
@@ -6,172 +8,178 @@
   align-items: center;   /* เดิม flex-start → แก้เป็น center */
 }
 
-.search-bar {
+.home-page .search-bar {
   display: flex;
   align-items: center;
   margin: 0 auto 30px auto; /* auto ซ้าย-ขวา = อยู่ตรงกลาง */
   border: 1px solid #ccc;
   border-radius: 25px;
   padding: 10px 20px;
-  width: 100%;             /* ให้เต็มความกว้าง */
-  max-width: 600px;        /* กำหนดขนาดสูงสุด (ไม่เล็กเกินไป ไม่ใหญ่จนสุดจอ) */
+  width: 100%;             
+  max-width: 600px;        
   background-color: #fff;
-  box-shadow: 0px 2px 6px rgba(0,0,0,0.1); /* เพิ่มเงาเล็กน้อย */
+  box-shadow: 0px 2px 6px rgba(0,0,0,0.1);
 }
 
-.search-bar input {
+.home-page .search-bar input {
   border: none;
   flex: 1;
   outline: none;
   font-size: 16px;
 }
 
-.search-bar i {
+.home-page .search-bar i {
   color: #777;
   font-size: 18px;
   cursor: pointer;
 }
 
-h3 {
-  margin: 40px 0 20px;   /* เพิ่ม spacing ด้านบน/ล่างให้ชัดขึ้น */
+.home-page h3 {
+  margin: 40px 0 20px;
   font-size: 20px;
-  text-align: center;    /* จัดหัวข้อให้อยู่ตรงกลาง */
-  width: 100%;           /* ให้ text-align center มีผลเต็มบรรทัด */
+  text-align: center;
+  width: 100%;
 }
 
-.card-list {
+.home-page .card-list {
   display: flex;
   gap: 20px;
   flex-wrap: wrap;
   justify-content: center; 
-  margin-bottom: 50px;   /* เพิ่มช่องว่างระหว่าง section */
+  margin-bottom: 50px;
 }
 
-.card {
-  width: 350px;          /* ลดขนาดการ์ดเล็กน้อยให้บาลานซ์ */
+.home-page .card {
+  width: 350px;
   border: 1px solid #ddd;
   border-radius: 12px;
   overflow: hidden;
   background: #fff;
   box-shadow: 0px 2px 5px rgba(0,0,0,0.05);
-  transition: transform 0.2s ease; /* เพิ่ม hover effect */
+  transition: transform 0.2s ease;
   margin-left: 20px;
 }
 
-.card:hover {
+.home-page .card:hover {
   transform: translateY(-5px);
 }
 
-/* ใช้กับรูปคอนเทนต์เท่านั้น ไม่กินเหรียญ */
-.card .card-image {
+/* ใช้กับรูปคอนเทนต์เท่านั้น */
+.home-page .card .card-image {
   width: 100%;
   height: 150px;
   object-fit: cover;
 }
 
-
-.card-body {
+.home-page .card-body {
   padding: 10px;
 }
 
-.card-body h4 {
+.home-page .card-body h4 {
   font-size: 15px;
   margin: 5px 0;
 }
 
-.card-body p {
+.home-page .card-body p {
   font-size: 12px;
   color: #555;
 }
 
-.card-header, .card-footer {
+.home-page .card-header, 
+.home-page .card-footer {
   display: flex;
-  flex-direction: row;     /* บังคับเรียงแนวนอน ซ้าย→ขวา */
-  align-items: center;     /* กึ่งกลางแนวตั้ง */
-  justify-content: flex-start; /* ชิดซ้ายสุด */
-  gap: 6px;                /* ช่องว่างเล็กๆ ระหว่างรูปกับชื่อ */
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
   padding: 8px 12px;
   width: 100%;
 }
 
-.card-header .author-img,
-.card-footer .author-img {
-  width: 40px ;
-  height: 40px ;
-  border-radius: 50% ;
-  object-fit: cover ;
-  margin: 0 ;   /* กัน margin แปลกๆ */
-  padding: 0 ;
+.home-page .card-header .author-img,
+.home-page .card-footer .author-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0;
+  padding: 0;
   flex-shrink: 0;
 }
 
-.card-header span,
-.card-footer span {
-  margin-left: 5px ;   /* กัน margin-left จาก Bootstrap */
-  padding: 0 ;
+.home-page .card-header span,
+.home-page .card-footer span {
+  margin-left: 5px;
+  padding: 0;
   text-align: left;
 }
-.likes {
+
+/* ไอคอนหัวใจ / ไลก์ */
+.home-page .likes {
   display: flex;
   align-items: center;
-  gap: 6px;            /* ช่องว่างระหว่างไอคอนกับตัวเลข */
+  gap: 6px;
   font-size: 16px;
   margin-top: 20px;
-  margin-left: 0px;  /* จาก 300px → 16px หรือ 0px */
+  margin-left: 0px;
 }
 
-.likes span {
-  color: #000000 ;
-  
+.home-page .likes span {
+  color: #000000;
 }
 
 /* -------------------------------------------------------------------- */
 
 /* แถวปุ่ม: ไลก์ซ้าย / ปุ่มอื่นขวา */
-.actions-row{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  margin-top: 10px;     /* เว้นระยะจากรูป */
+.home-page .actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
 }
 
 /* กล่องปุ่มด้านขวา */
-.action-right{
-  display:flex;
-  align-items:center;
-  gap:8px;
+.home-page .action-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-/* ===== ปุ่มบันทึก/แชร์: เอาขอบออก แต่ไม่กระทบปุ่มไลก์เดิม ===== */
-.icon-btn{
+/* ===== ปุ่มบันทึก/แชร์ ===== */
+.home-page .icon-btn {
   width: 29px;
   height: 29px;
-   margin-top: 20px;
+  margin-top: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: none;              /* ไม่มีขอบ */
-  background: transparent;   /* ไม่มีพื้นหลัง */
+  border: none;
+  background: transparent;
   border-radius: 10px;
   cursor: pointer;
   transition: transform .1s ease, color .2s ease;
 }
-.icon-btn svg{
+
+.home-page .icon-btn svg {
   font-size: 20px;
   color: #000000;
 }
-.icon-btn:hover svg{
+
+.home-page .icon-btn:hover svg {
   color: #000;
   transform: scale(1.1);
 }
-.icon-btn.active svg{
-  color: #ffd500;            /* สีตอนบันทึกแล้ว */
+
+.home-page .icon-btn.active svg {
+  color: #ffd500; /* สีตอนบันทึกแล้ว */
 }
 
-/* ===== Toast: ลอยบนการ์ด, ไม่ขึ้นกับ hover, อยู่ได้นานขึ้น ===== */
-.card{ position: relative; } /* แค่เสริม เพื่อวาง toast แบบ absolute */
+/* ===== Toast ลอยบนการ์ด ===== */
+.home-page .card {
+  position: relative;
+}
 
-.mini-toast{
+.home-page .mini-toast {
   position: absolute;
   bottom: 10px;
   left: 50%;
@@ -182,20 +190,23 @@ h3 {
   border-radius: 10px;
   font-size: 15px;
   pointer-events: none;
-  z-index: 20;               /* อยู่เหนือเนื้อหาในการ์ด */
-  animation: cs-fadeInOut 3s ease; /* 3 วินาที (ปรับได้) */
+  z-index: 20;
+  animation: cs-fadeInOut 3s ease;
 }
 
-@keyframes cs-fadeInOut{
+@keyframes cs-fadeInOut {
   0%   { opacity: 0; transform: translate(-50%, 10px); }
   10%  { opacity: 1; transform: translate(-50%, 0); }
   90%  { opacity: 1; transform: translate(-50%, 0); }
   100% { opacity: 0; transform: translate(-50%, 10px); }
 }
-/* ===== เหรียญรางวัล ===== */
-.ranking-card { position: relative; } /* การ์ดอันดับเท่านั้น */
 
-.rank-badge {
+/* ===== เหรียญรางวัล ===== */
+.home-page .ranking-card {
+  position: relative;
+}
+
+.home-page .rank-badge {
   position: absolute !important;
   top: 10px !important;
   right: 12px !important;
@@ -207,22 +218,20 @@ h3 {
   filter: drop-shadow(0 2px 6px rgba(0,0,0,.15));
 }
 
-/* ถ้าต้องการขนาดต่างตามอันดับ (ไม่บังคับ) */
-.rank-1.rank-badge { width: 56px !important; height: 56px !important; }
-.rank-2.rank-badge { width: 52px !important; height: 52px !important; }
-.rank-3.rank-badge { width: 50px !important; height: 50px !important; }
+/* ขนาดแตกต่างตามอันดับ */
+.home-page .rank-1.rank-badge { width: 56px !important; height: 56px !important; }
+.home-page .rank-2.rank-badge { width: 52px !important; height: 52px !important; }
+.home-page .rank-3.rank-badge { width: 50px !important; height: 50px !important; }
 
-/* เว้นที่ให้รูปสรุปห่างจากเหรียญ */
-.ranking-card .card-image {
-  margin-top: 12px;    /* ลอง 12–16px ตามที่ชอบ */
+/* กันรูปสรุปชนเหรียญ */
+.home-page .ranking-card .card-image {
+  margin-top: 12px;
 }
 
-/* กันหัวการ์ด (รูป/ชื่อ) ไปชนเหรียญที่มุมขวาบน */
-.ranking-card .card-header {
-  padding-right: 64px; /* กว้างพอสำหรับเหรียญ ~50px + ระยะเผื่อ */
+/* กันหัวการ์ดไปชนเหรียญขวาบน */
+.home-page .ranking-card .card-header {
+  padding-right: 64px;
 }
-
-
 
 
 
