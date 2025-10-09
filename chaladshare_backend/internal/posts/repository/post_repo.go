@@ -101,8 +101,7 @@ func (r *postRepository) InitPostStats(postID int) error {
 func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 	query := `
 	SELECT 
-		p.post_id,
-		p.post_author_user_id,
+		p.post_id, p.post_author_user_id,
 		u.username AS author_name,
 		p.post_title,
 		p.post_description,

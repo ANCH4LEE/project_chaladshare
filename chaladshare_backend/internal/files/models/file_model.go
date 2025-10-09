@@ -10,6 +10,11 @@ type Document struct {
 	DocumentURL     string    `json:"document_url"`
 	StorageProvider string    `json:"storage_provider"`
 	UploadedAt      time.Time `json:"uploaded_at"`
+
+	//เพิ่มตรงนี้
+	// ThumbnailURL string   `json:"thumbnail_url,omitempty"` // preview หน้าหลัก
+	// PageCount    int      `json:"page_count,omitempty"`    // จำนวนหน้าใน PDF
+	// PageURLs     []string `json:"page_urls,omitempty"`     // ลิงค์ภาพแต่ละหน้า
 }
 
 //เก็บข้อมูลจากไฟล์ที่สรุปเนื้อหาด้วย AI
@@ -32,6 +37,12 @@ type UploadRequest struct {
 
 //response ตอนอัปโหลดสำเร็จ
 type UploadResponse struct {
-	Message string   `json:"message"`
-	File    Document `json:"file"`
+	Message    string   `json:"message"`
+	File       Document `json:"file"`
+	FileURL    string   `json:"file_url"`
+	DocumentID int      `json:"document_id"`
+
+	//เพิ่ม
+	// PageURLs     []string `json:"page_urls,omitempty"`     // ส่งกลับ list ของรูป
+	// ThumbnailURL string   `json:"thumbnail_url,omitempty"` // ส่งกลับรูป preview
 }

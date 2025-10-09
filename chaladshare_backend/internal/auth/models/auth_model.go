@@ -9,6 +9,7 @@ type User struct {
 	PasswordHash string    `json:"-"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
+	Status       string    `json:"status"`
 }
 
 //register
@@ -31,4 +32,5 @@ type AuthResponse struct {
 	Username  string    `json:"username"`
 	CreatedAt time.Time `json:"created_at"`
 	Status    string    `json:"status"`
+	// Token 	  string 	`json:"token,omitempty"`
 }

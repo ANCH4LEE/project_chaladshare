@@ -4,14 +4,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 
 	"chaladshare_backend/internal/auth/models"
 )
 
 type AuthRepository interface {
+	GetAllUsers() ([]models.User, error)
+	GetUserByID(id int) (*models.User, error)
 	GetUserByEmail(email string) (*models.User, error)
-	CreateUser(user *models.User) error
+	CreateUser(email, username, passwordHash string) (*models.User, error)
 }
 
 type authRepository struct {
@@ -19,54 +20,94 @@ type authRepository struct {
 }
 
 // func สร้าง repository
-func NewUserRepository(db *sql.DB) AuthRepository {
+func NewAuthRepository(db *sql.DB) AuthRepository {
 	return &authRepository{db: db}
 }
 
-// ดึงข้อมูลผู้ใช้จาก email
+// GET ผู้ใช้ทั้งหมด เรียง id
+func (r *authRepository) GetAllUsers() ([]models.User, error) {
+	rows, err := r.db.Query(`
+		SELECT user_id, email, username, user_created_at, user_updated_at, user_status
+		FROM users
+		ORDER BY user_id
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("ไม่สามารถดึงข้อมูลผู้ใช้ทั้งหมดได้: %w", err)
+	}
+	defer rows.Close()
+
+	var users []models.User
+	for rows.Next() {
+		var u models.User
+		if err := rows.Scan(
+			&u.ID, &u.Email, &u.Username,
+			&u.CreatedAt, &u.UpdatedAt, &u.Status,
+		); err != nil {
+			return nil, fmt.Errorf("อ่านข้อมูลผู้ใช้ไม่สำเร็จ: %w", err)
+		}
+		users = append(users, u)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("เกิดข้อผิดพลาดระหว่างอ่านข้อมูล: %w", err)
+	}
+	return users, nil
+}
+
+// ดึงข้อมูลผู้ใช้จาก id
+func (r *authRepository) GetUserByID(id int) (*models.User, error) {
+	var u models.User
+	err := r.db.QueryRow(`
+		SELECT user_id, email, username, user_created_at, user_updated_at, user_status
+		FROM users
+		WHERE user_id = $1
+	`, id).Scan(
+		&u.ID, &u.Email, &u.Username, &u.CreatedAt,
+		&u.UpdatedAt, &u.Status,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, errors.New("ไม่พบผู้ใช้")
+	} else if err != nil {
+		return nil, fmt.Errorf("เกิดข้อผิดพลาดในการดึงข้อมูลผู้ใช้: %w", err)
+	}
+	return &u, nil
+}
+
+// ผู้ใช้ตาม email
 func (r *authRepository) GetUserByEmail(email string) (*models.User, error) {
-	query := `
+	var u models.User
+	err := r.db.QueryRow(`
 		SELECT user_id, email, username, password_hash, user_created_at, user_status
 		FROM users
 		WHERE email = $1
-	`
-	var user models.User
-	var userStatus string // สำหรับรับค่า user_status เพิ่ม
-
-	err := r.db.QueryRow(query, email).Scan(
-		&user.ID,
-		&user.Email,
-		&user.Username,
-		&user.PasswordHash,
-		&user.CreatedAt,
-		&userStatus,
+	`, email).Scan(
+		&u.ID, &u.Email, &u.Username, &u.PasswordHash,
+		&u.CreatedAt, &u.Status,
 	)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, errors.New("ไม่พบบัญชีผู้ใช้")
-		}
-		return nil, fmt.Errorf("query error: %v", err)
+	if err == sql.ErrNoRows {
+		return nil, errors.New("ไม่พบบัญชีผู้ใช้")
+	} else if err != nil {
+		return nil, fmt.Errorf("เกิดข้อผิดพลาด: %w", err)
 	}
-
-	return &user, nil
+	return &u, nil
 }
 
 // สร้างผู้ใช้ใหม่
-func (r *authRepository) CreateUser(user *models.User) error {
-	query := `
+func (r *authRepository) CreateUser(email, username, passwordHash string) (*models.User, error) {
+	var u models.User
+	err := r.db.QueryRow(`
 		INSERT INTO users (email, username, password_hash)
 		VALUES ($1, $2, $3)
-		RETURNING user_id, user_created_at
-	`
-	err := r.db.QueryRow(query, user.Email, user.Username, user.PasswordHash).
-		Scan(&user.ID, &user.CreatedAt)
+		RETURNING user_id, email, username, user_created_at, user_status
+	`, email, username, passwordHash).Scan(
+		&u.ID, &u.Email, &u.Username,
+		&u.CreatedAt, &u.Status,
+	)
 
 	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key") {
-			return errors.New("อีเมลหรือชื่อผู้ใช้งานถูกใช้แล้ว")
-		}
-		return fmt.Errorf("ไม่สามารถบันทึกผู้ใช้ได้: %v", err)
+		return nil, fmt.Errorf("ไม่สามารถสร้างผู้ใช้ใหม่ได้: %w", err)
 	}
-	return nil
+
+	return &u, nil
 }

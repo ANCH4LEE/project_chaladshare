@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -12,17 +13,17 @@ import (
 	// "chaladshare_backend/internal/middleware"
 	"chaladshare_backend/internal/connectdb"
 
-	authHandler "chaladshare_backend/internal/auth/handlers"
-	authRepo "chaladshare_backend/internal/auth/repository"
-	authService "chaladshare_backend/internal/auth/service"
+	AuthHandler "chaladshare_backend/internal/auth/handlers"
+	AuthRepo "chaladshare_backend/internal/auth/repository"
+	AuthService "chaladshare_backend/internal/auth/service"
 
 	FileHandler "chaladshare_backend/internal/files/handlers"
 	FileRepo "chaladshare_backend/internal/files/repository"
 	FileService "chaladshare_backend/internal/files/service"
 
-	postHandler "chaladshare_backend/internal/posts/handlers"
-	postRepo "chaladshare_backend/internal/posts/repository"
-	postSrv "chaladshare_backend/internal/posts/service"
+	PostHandler "chaladshare_backend/internal/posts/handlers"
+	PostRepo "chaladshare_backend/internal/posts/repository"
+	PostService "chaladshare_backend/internal/posts/service"
 )
 
 func TimeoutMiddleware(timeout time.Duration) gin.HandlerFunc {
@@ -50,9 +51,9 @@ func main() {
 	defer db.Close()
 
 	//auth repo service handler
-	authRepository := authRepo.NewUserRepository(db.GetDB())
-	authService := authService.NewAuthService(authRepository)
-	authHandler := authHandler.NewAuthHandler(authService)
+	authRepository := AuthRepo.NewAuthRepository(db.GetDB())
+	authService := AuthService.NewAuthService(authRepository)
+	authHandler := AuthHandler.NewAuthHandler(authService)
 
 	//file repo service handler
 	fileRepository := FileRepo.NewFileRepository(db.GetDB())
@@ -60,15 +61,15 @@ func main() {
 	fileHandler := FileHandler.NewFileHandler(fileService)
 
 	//post repo service handler
-	postRepository := postRepo.NewPostRepository(db.GetDB())
-	likeRepository := postRepo.NewLikeRepository(db.GetDB())
-	saveRepository := postRepo.NewSaveRepository(db.GetDB())
+	postRepository := PostRepo.NewPostRepository(db.GetDB())
+	likeRepository := PostRepo.NewLikeRepository(db.GetDB())
+	saveRepository := PostRepo.NewSaveRepository(db.GetDB())
 
-	postService := postSrv.NewPostService(postRepository)
-	likeService := postSrv.NewLikeService(likeRepository)
-	saveService := postSrv.NewSaveService(saveRepository)
+	postService := PostService.NewPostService(postRepository)
+	likeService := PostService.NewLikeService(likeRepository)
+	saveService := PostService.NewSaveService(saveRepository)
 
-	postHandler := postHandler.NewPostHandler(postService, likeService, saveService)
+	postHandler := PostHandler.NewPostHandler(postService, likeService, saveService)
 
 	go func() {
 		for {
@@ -89,14 +90,21 @@ func main() {
 
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Accept"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
 
-	r.Use(TimeoutMiddleware(5 * time.Second))
+	r.Use(TimeoutMiddleware(60 * time.Second))
+	r.MaxMultipartMemory = 100 << 20
+	r.Static("/uploads", "./uploads")
+
+	// สร้างโฟลเดอร์ uploads ถ้ายังไม่มี
+	if err := os.MkdirAll("uploads", 0755); err != nil {
+		log.Fatalf("cannot create uploads dir: %v", err)
+	}
 
 	r.GET("/health", func(c *gin.Context) {
 		if err := connectdb.CheckDBConnection(db.GetDB()); err != nil {
@@ -109,15 +117,20 @@ func main() {
 	v1 := r.Group("/api/v1")
 
 	//login register
-	v1.POST("/auth/register", authHandler.Register)
-	v1.POST("/auth/login", authHandler.Login)
+	authRoutes := v1.Group("/auth")
+	{
+		authRoutes.POST("/register", authHandler.Register)
+		authRoutes.POST("/login", authHandler.Login)
+		authRoutes.GET("/users", authHandler.GetAllUsers)
+		authRoutes.GET("/users/:id", authHandler.GetUserByID)
+	}
 
-	// //Protected routes (ต้องตรวจ JWT ก่อนเข้า)
-	// protected := v1.Group("/user")
-	// protected.Use(middleware.JWTAuthMiddleware())
-	// {
-	// 	protected.GET("/profile", authHandler.GetProfile)
-	// }
+	//Protected routes (ต้องตรวจ JWT ก่อนเข้า)
+	/*{protected := v1.Group("/user")
+	protected.Use(middleware.JWTAuthMiddleware())
+	{
+		protected.GET("/profile", authHandler.GetProfile)
+	}}*/
 
 	//file
 	fileRoutes := v1.Group("/files")
@@ -131,8 +144,8 @@ func main() {
 	//post liked saved
 	postRoutes := v1.Group("/posts")
 	{
-		postRoutes.POST("/", postHandler.CreatePost)
-		postRoutes.GET("/", postHandler.GetAllPosts)
+		postRoutes.POST("", postHandler.CreatePost)
+		postRoutes.GET("", postHandler.GetAllPosts)
 		postRoutes.GET("/:id", postHandler.GetPostByID)
 		postRoutes.PUT("/:id", postHandler.UpdatePost)
 		postRoutes.DELETE("/:id", postHandler.DeletePost)

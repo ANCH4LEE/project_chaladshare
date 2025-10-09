@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -20,20 +22,46 @@ func NewFileHandler(fileservice service.FileService) *FileHandler {
 
 // 1.อัปโหลดไฟล์ post /api/files/upload
 func (h *FileHandler) UploadFile(c *gin.Context) {
-	var req models.UploadRequest
 
-	if err := c.ShouldBind(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ข้อมูลที่ไม่ถูกต้อง"})
+	log.Printf("[upload] Content-Type: %s", c.Request.Header.Get("Content-Type"))
+	log.Printf("[upload] Content-Length: %d", c.Request.ContentLength)
+
+	// อ่านไฟล์จากfile
+	file, err := c.FormFile("file")
+	if err != nil {
+		log.Printf("[upload] c.FormFile error: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("อ่านไฟล์ไม่สำเร็จ: %v", err)})
+		return
+	}
+	log.Printf("[upload] got file: %s, size=%d", file.Filename, file.Size)
+
+	// เซฟลงโฟลเดอร์
+	path := fmt.Sprintf("uploads/%s", file.Filename)
+	if err := c.SaveUploadedFile(file, path); err != nil {
+		log.Printf("[upload] SaveUploadedFile error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "อัปโหลดไฟล์ไม่สำเร็จ"})
 		return
 	}
 
-	//เรียก service เพื่อบันทึกไฟล์
-	resp, err := h.fileservice.UploadFile(&req)
+	req := &models.UploadRequest{
+		DocumentName: file.Filename,
+		DocumentURL:  fmt.Sprintf("http://localhost:8080/%s", path),
+		Storage:      "local",
+		UserID:       1,
+	}
+
+	resp, err := h.fileservice.UploadFile(req)
 	if err != nil {
+		log.Printf("[upload] service error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, resp) //response to client
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "file uploaded successfully",
+		"file_url":    resp.FileURL,
+		"document_id": resp.DocumentID,
+	})
 }
 
 // 2.ดึงข้อมูลไฟล์ทั้งหมดของผู้ใช้ get /api/files/user/:user_id

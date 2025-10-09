@@ -48,10 +48,11 @@ type PostResponse struct {
 	Post
 	AuthorID   int        `json:"author_id"`
 	AuthorName string     `json:"author_name"`
+	FileURL    *string    `json:"file_url"`
 	Tags       []string   `json:"tags"`
 	LikeCount  int        `json:"like_count"`
 	SaveCount  int        `json:"save_count"`
 	IsLiked    bool       `json:"is_liked"`
-	IsSaved    bool       `json:"is_savesd"`
+	IsSaved    bool       `json:"is_saved"`
 	Stats      *PostStats `json:"stats"`
 }
