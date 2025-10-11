@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate,Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 
 import { MdOutlineAlternateEmail, MdLockOutline } from "react-icons/md";
@@ -53,6 +53,21 @@ const Login = () => {
       .then((response) => {
         console.log("Login success:", response.data);
         setError("");
+
+        // ✅ ดึงข้อมูลผู้ใช้จาก backend (auth_handler.go ส่งกลับมาภายใต้ key "user")
+        const user = response.data.user;
+
+        // ✅ เก็บข้อมูลใน localStorage
+        localStorage.setItem("user_id", user.id);
+        localStorage.setItem("username", user.username);
+        localStorage.setItem("email", user.email);
+
+        // (ถ้าอยากเช็ก)
+        console.log("User stored:", localStorage.getItem("user_id"));
+
+        // ✅ ไปหน้า home ได้เลย
+        navigate("/home");
+
         navigate("/home");
       })
       .catch((error) => {
@@ -63,79 +78,83 @@ const Login = () => {
 
   return (
     <div className="login-page">
-    <div
-      className="login-container" style={{
-        backgroundImage: `url(${bg})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-      }}
-    >
-      <div className="login-box">
-        <img src={logo} alt="Logo" />
-        <h2>เข้าสู่ระบบ</h2>
+      <div
+        className="login-container"
+        style={{
+          backgroundImage: `url(${bg})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+        }}
+      >
+        <div className="login-box">
+          <img src={logo} alt="Logo" />
+          <h2>เข้าสู่ระบบ</h2>
 
-        <form onSubmit={handleSubmit}>
-          {/* email */}
-          <div className="input-group">
-            <span className="icon">
-              <MdOutlineAlternateEmail />
-            </span>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="Email"
-              required
+          <form onSubmit={handleSubmit}>
+            {/* email */}
+            <div className="input-group">
+              <span className="icon">
+                <MdOutlineAlternateEmail />
+              </span>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Email"
+                required
+                className="mb-3 p-2 border border-gray-300 rounded"
+              />
+            </div>
+
+            {/* password */}
+            <div className="input-group">
+              <span className="icon">
+                <MdLockOutline />
+              </span>
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Password"
+                required
+              />
+              <span
+                className="icon-right"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <VscEyeClosed /> : <VscEye />}
+              </span>
+            </div>
+
+            <div className="forgot-password">
+              <a href="#">ลืมรหัสผ่าน?</a>
+            </div>
+
+            <button
+              type="submit"
               className="mb-3 p-2 border border-gray-300 rounded"
-            />
-          </div>
-
-          {/* password */}
-          <div className="input-group">
-            <span className="icon"><MdLockOutline /></span>
-            <input
-              type={showPassword ? "text" : "password"}
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="Password"
-              required
-            />
-            <span
-              className="icon-right"
-              onClick={() => setShowPassword(!showPassword)}
             >
-              {showPassword ? <VscEyeClosed /> : <VscEye />}
-            </span>
-          </div>
-
-
-          <div className="forgot-password">
-            <a href="#">ลืมรหัสผ่าน?</a>
-          </div>
-
-          <button
-            type="submit"
-            className="mb-3 p-2 border border-gray-300 rounded"
-          >
-            เข้าสู่ระบบ
-          </button>
+              เข้าสู่ระบบ
+            </button>
             {/* error message */}
-          {error && (
-            <p style={{ color: "red", fontSize: "15px", marginBottom: "1rem" }}>
-              {error}
-            </p>
-          )}
-        </form>
+            {error && (
+              <p
+                style={{ color: "red", fontSize: "15px", marginBottom: "1rem" }}
+              >
+                {error}
+              </p>
+            )}
+          </form>
 
-        <div className="ClickToRegis">
-          <p>มีบัญชีแล้วหรือยัง?</p>
-          <Link to="/register">สมัครสมาชิก</Link>
+          <div className="ClickToRegis">
+            <p>มีบัญชีแล้วหรือยัง?</p>
+            <Link to="/register">สมัครสมาชิก</Link>
+          </div>
         </div>
       </div>
-    </div>
     </div>
   );
 };

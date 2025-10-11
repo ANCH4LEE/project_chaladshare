@@ -55,22 +55,35 @@ const Register = () => {
       return;
     }
 
-  axios
-    .post("http://localhost:8080/api/v1/auth/register", {
-      email: formData.userEmail,
-      username: formData.username,
-      password: formData.password,
-    })
-    .then((response) => {
-      console.log("Register success:", response.data);
-      alert("สมัครสมาชิกสำเร็จ!");
-      setError("");
-      navigate("/home");
-    })
-    .catch((error) => {
-      console.error("Register error:", error);
-      setError(error.response?.data?.error || "เกิดข้อผิดพลาดในการสมัครสมาชิก");
-    });
+    axios
+      .post("http://localhost:8080/api/v1/auth/register", {
+        email: formData.userEmail,
+        username: formData.username,
+        password: formData.password,
+      })
+      .then((response) => {
+        console.log("Register success:", response.data);
+        alert("สมัครสมาชิกสำเร็จ!");
+        setError("");
+
+        // ✅ ดึงข้อมูลผู้ใช้จาก backend (auth_handler.go ส่งกลับภายใต้ key "user")
+        const user = response.data.user;
+
+        // ✅ เก็บใน localStorage
+        localStorage.setItem("user_id", user.id);
+        localStorage.setItem("username", user.username);
+        localStorage.setItem("email", user.email);
+
+        console.log("User stored:", localStorage.getItem("user_id"));
+
+        navigate("/home");
+      })
+      .catch((error) => {
+        console.error("Register error:", error);
+        setError(
+          error.response?.data?.error || "เกิดข้อผิดพลาดในการสมัครสมาชิก"
+        );
+      });
   };
 
   return (

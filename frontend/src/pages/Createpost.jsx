@@ -7,16 +7,11 @@ import axios from "axios";
 import "../component/Createpost.css";
 import Sidebar from "./Sidebar";
 
-
-const UPLOAD_URL = "http://localhost:8080/api/v1/files/upload";
-const POSTS_URL  = "http://localhost:8080/api/v1/posts";
-
-
+const BASE_URL = "http://localhost:8080/api/v1";
 const MAX_FILE_MB = 20; // จำกัดขนาดไฟล์ 20MB
 const ACCEPTED_MIME = ["application/pdf"];
 
 function parseTags(input) {
-  // แปลง "uml, se #doc" -> ["#uml","#se","#doc"]
   return input
     .split(/[,\s]+/g)
     .map((t) => t.trim())
@@ -25,24 +20,30 @@ function parseTags(input) {
 }
 
 const CreatePost = () => {
-  const [title, setTitle] = useState("");
-  const [visibility, setVisibility] = useState("public"); // "public" | "friends"
-  const [description, setDescription] = useState("");
-  const [tags, setTags] = useState("");
-  const [file, setFile] = useState(null);
+  const [formData, setForm] = useState({
+    title: "",
+    description: "",
+    tags: "",
+    visibility: "public",
+    file: null,
+  })
+
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-
   const navigate = useNavigate(); 
+
+   const handleChange = (e) => {
+    setForm({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
 
   // เลือกไฟล์ + ตรวจสอบชนิด+ขนาด
   const handleFileChange = (e) => {
     setErrorMsg("");
     const f = e.target.files?.[0];
-    if (!f) {
-      setFile(null);
-      return;
-    }
+    if (!f) return;
 
     const sizeMB = f.size / (1024 * 1024);
     if (!ACCEPTED_MIME.includes(f.type)) {
@@ -55,18 +56,7 @@ const CreatePost = () => {
       e.target.value = "";
       return;
     }
-    setFile(f);
-  };
-
- 
-  const handleCancel = () => {
-    setTitle("");
-    setDescription("");
-    setTags("");
-    setFile(null);
-    setVisibility("public");
-    setErrorMsg("");
-    navigate("/home"); 
+    setForm({ ...formData, file: f });
   };
 
   // โพสต์
@@ -74,11 +64,13 @@ const CreatePost = () => {
     e.preventDefault();
     setErrorMsg("");
 
-    if (!title.trim()) {
+    const currentUserId = localStorage.getItem("user_id"); // ดึง user_id ที่เก็บไว้ตอน login
+
+    if (!formData.title.trim()) {
       setErrorMsg("กรุณากรอกหัวข้อ");
       return;
     }
-    if (!file) {
+    if (!formData.file) {
       setErrorMsg("กรุณาอัปโหลดไฟล์ .pdf");
       return;
     }
@@ -86,34 +78,32 @@ const CreatePost = () => {
     try {
       setIsLoading(true);
 
-      // อัปโหลดไฟล์
-      const formData = new FormData();
-      formData.append("file", file); 
+     // อัปโหลดไฟล์ PDF ก่อน
+      const fileData = new FormData();
+      fileData.append("file", formData.file);
+      fileData.append("user_id", currentUserId);
 
-      console.log("UPLOAD_URL =", UPLOAD_URL);
-      const uploadRes = await axios.post(UPLOAD_URL, formData);
-      console.log("uploadRes =", uploadRes.data);
+      const uploadRes = await axios.post(`${BASE_URL}/files/upload`, fileData);
 
       const documentId = uploadRes.data?.document_id;
-      if (!documentId) throw new Error("ไม่พบ document_id จากการอัปโหลดไฟล์");
+      if (!documentId) throw new Error("ไม่พบ document_id จากการอัปโหลด");
 
       // สร้างโพสต์
       const postData = {
-        author_user_id: 1, // TODO: เปลี่ยนมาใช้จาก JWT ภายหลัง
-        post_title: title.trim(),
-        post_description: description.trim(),
-        post_visibility: visibility,
+        author_user_id: Number(currentUserId), // TODO: ใช้จาก JWT ภายหลัง
+        post_title: formData.title.trim(),
+        post_description: formData.description.trim(),
+        post_visibility: formData.visibility,
         post_document_id: documentId,
-        tags: parseTags(tags),
+        post_summary_id: null,
+        tags: parseTags(formData.tags),
       };
 
-      console.log("POSTS_URL =", POSTS_URL);
-      await axios.post(POSTS_URL, postData);
-
+      await axios.post(`${BASE_URL}/posts`, postData);
       alert("โพสต์สำเร็จ!");
       handleCancel();
     } catch (err) {
-      console.error(err);
+      console.error("Create post error:", err);
       setErrorMsg(
         err?.response?.data?.error ||
           err?.message ||
@@ -123,6 +113,18 @@ const CreatePost = () => {
       setIsLoading(false);
     }
   };
+
+  const handleCancel = () => {
+      setForm({
+        title: "",
+        description: "",
+        tags: "",
+        visibility: "public",
+        file: null,
+      });
+      setErrorMsg("");
+      navigate("/home");
+    };
 
   return (
      <div className="create-page">
@@ -140,14 +142,16 @@ const CreatePost = () => {
           <div className="title-row">
             <input
               type="text"
+              name="title"
               placeholder="พิมพ์หัวข้อของคุณ..."
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              value={formData.title}
+              onChange={handleChange}
               disabled={isLoading}
             />
             <select
-              value={visibility}
-              onChange={(e) => setVisibility(e.target.value)}
+              name="visibility"
+              value={formData.visibility}
+              onChange={handleChange}
               disabled={isLoading}
             >
               <option value="public">สาธารณะ</option>
@@ -170,7 +174,7 @@ const CreatePost = () => {
               disabled={isLoading}
             />
             <label htmlFor="file-upload" className="upload-label">
-              {file ? <span>{file.name}</span> : (
+              {formData.file ? <span>{formData.file.name}</span> : (
                 <>
                   <img
                     src="https://cdn-icons-png.flaticon.com/512/864/864685.png"
@@ -188,9 +192,10 @@ const CreatePost = () => {
         <div className="form-group">
           <label>คำอธิบาย</label>
           <textarea
+            name="description"
             placeholder="เพิ่มรายละเอียดเกี่ยวกับโพสต์ของคุณ..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            value={formData.description}
+            onChange={handleChange}
             disabled={isLoading}
           />
         </div>
@@ -202,9 +207,10 @@ const CreatePost = () => {
           </label>
           <input
             type="text"
+            name="tags"
             placeholder="เช่น #uml #se หรือ uml,se"
-            value={tags}
-            onChange={(e) => setTags(e.target.value)}
+            value={formData.tags}
+            onChange={handleChange}
             disabled={isLoading}
           />
         </div>
@@ -220,9 +226,9 @@ const CreatePost = () => {
           <button
             type="submit"
             className="btn-submit"
-            disabled={isLoading || !title.trim() || !file}
+            disabled={isLoading || !formData.title.trim() || !formData.file}
           >
-            {isLoading ? "กำลังโพสต์" : "โพสต์"}
+            {isLoading ? "กำลังโพสต์..." : "โพสต์"}
           </button>
         </div>
       </form>
