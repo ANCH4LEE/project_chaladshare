@@ -128,8 +128,20 @@ create table if not exists documents (
     document_name     varchar(255),                                        -- ชื่อไฟล์
     document_url      text not null,                                       -- URL ของไฟล์
     storage_provider  varchar(50),                                         -- เช่น s3, firebase, local
-    uploaded_at       timestamptz default now()                            -- เวลาอัปโหลด
+    uploaded_at       timestamptz default now(),                           -- เวลาอัปโหลด
+    page_count        integer                                              -- ***จำนวนหน้าของไฟล์ PDF
 );
+
+-- ***ตารางเก็บภาพจากไฟล์เอกสาร
+CREATE TABLE IF NOT EXISTS document_pages (
+    doc_page_id serial primary key,
+    document_id integer references documents(document_id) on delete cascade,
+    page_index integer not null,
+    image_url text not null,
+    created_at timestamptz default now(),
+    UNIQUE(document_id, page_index)
+);
+
 
 -- ตารางเก็บสรุป (summaries)
 create table if not exists summaries (
@@ -139,6 +151,7 @@ create table if not exists summaries (
     summary_pdf_url    text,           -- ถ้ามี export PDF
     summary_created_at timestamptz default now() -- เวลา generate
 );
+
 
 -- ตารางโพสต์
 create table if not exists posts (
