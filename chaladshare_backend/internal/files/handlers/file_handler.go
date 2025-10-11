@@ -1,15 +1,18 @@
 package handlers
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
-	"log"
 	"net/http"
-	"strconv"
+	"path/filepath"
+	"strings"
+
+	"github.com/gin-gonic/gin"
 
 	"chaladshare_backend/internal/files/models"
 	"chaladshare_backend/internal/files/service"
-
-	"github.com/gin-gonic/gin"
+	"chaladshare_backend/internal/utils"
 )
 
 type FileHandler struct {
@@ -20,94 +23,122 @@ func NewFileHandler(fileservice service.FileService) *FileHandler {
 	return &FileHandler{fileservice: fileservice}
 }
 
-// 1.อัปโหลดไฟล์ post /api/files/upload
+// upload file + แปลงภาพ + ลง db
 func (h *FileHandler) UploadFile(c *gin.Context) {
+	var form models.UploadFrom
+	if err := c.ShouldBind(&form); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "กรุณาระบุ user_id"})
+		return
+	}
 
-	log.Printf("[upload] Content-Type: %s", c.Request.Header.Get("Content-Type"))
-	log.Printf("[upload] Content-Length: %d", c.Request.ContentLength)
-
-	// อ่านไฟล์จากfile
 	file, err := c.FormFile("file")
 	if err != nil {
-		log.Printf("[upload] c.FormFile error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("อ่านไฟล์ไม่สำเร็จ: %v", err)})
-		return
-	}
-	log.Printf("[upload] got file: %s, size=%d", file.Filename, file.Size)
-
-	// เซฟลงโฟลเดอร์
-	path := fmt.Sprintf("uploads/%s", file.Filename)
-	if err := c.SaveUploadedFile(file, path); err != nil {
-		log.Printf("[upload] SaveUploadedFile error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "อัปโหลดไฟล์ไม่สำเร็จ"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "กรุณาแนบไฟล์ PDF"})
 		return
 	}
 
+	savePath := fmt.Sprintf("./uploads/%s", filepath.Base(file.Filename))
+	if err := c.SaveUploadedFile(file, savePath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "ไม่สามารถบันทึกไฟล์ได้"})
+		return
+	}
+
+	outputDir := fmt.Sprintf("./uploads/pages/%s", strings.TrimSuffix(file.Filename, ".pdf"))
+	images, err := utils.ConvertPDFToImages(savePath, outputDir)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("แปลง PDF ไม่สำเร็จ: %v", err)})
+		return
+	}
+
+	// เตรียมข้อมูลเพื่อส่งให้ service
 	req := &models.UploadRequest{
-		DocumentName: file.Filename,
-		DocumentURL:  fmt.Sprintf("http://localhost:8080/%s", path),
-		Storage:      "local",
-		UserID:       1,
+		UserID:          form.UserID,
+		DocumentName:    file.Filename,
+		DocumentURL:     savePath,
+		StorageProvider: "local",
+		Images:          images,
 	}
 
 	resp, err := h.fileservice.UploadFile(req)
 	if err != nil {
-		log.Printf("[upload] service error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message":     "file uploaded successfully",
-		"file_url":    resp.FileURL,
-		"document_id": resp.DocumentID,
-	})
+	c.JSON(http.StatusCreated, resp)
 }
 
-// 2.ดึงข้อมูลไฟล์ทั้งหมดของผู้ใช้ get /api/files/user/:user_id
+// ดึงไฟล์ทั้งหมดของผู้ใช้
 func (h *FileHandler) GetFilesByUserID(c *gin.Context) {
-	userID, err := strconv.Atoi(c.Param("user_id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id ไม่ถูกต้อง"})
-		return
-	}
+	userIDStr := c.Param("user_id")
+	var userID int
+	fmt.Sscanf(userIDStr, "%d", &userID)
 
 	files, err := h.fileservice.GetFilesByUserID(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "ไม่พบไฟล์ของผู้ใช้นี้"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"files": files})
+
+	c.JSON(http.StatusOK, files)
 }
 
-// 3.บันทึกสรุปที่ได้มาจาก AI post /api/files/summary
-func (h *FileHandler) SaveSummary(c *gin.Context) {
-	var req models.Summary
+// ดึงภาพของแต่ละหน้า PDF
+func (h *FileHandler) GetDocumentPages(c *gin.Context) {
+	docIDStr := c.Param("document_id")
+	var docID int
+	fmt.Sscanf(docIDStr, "%d", &docID)
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ข้อมูลสรุปไม่ถูกต้อง"})
-		return
-	}
-
-	if err := h.fileservice.SaveSummary(&req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"message": "บันทึกสรุปสำเร็จ"})
-}
-
-// 4.ดึงสรุปจาก document_id get /api/files/summary/:document_id
-func (h *FileHandler) GetSummaryByDocumentID(c *gin.Context) {
-	docID, err := strconv.Atoi(c.Param("document_id"))
+	pages, err := h.fileservice.GetDocumentPages(docID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "document_id ไม่ถูกต้อง"})
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "ไม่พบหน้าเอกสารนี้"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
+
+	c.JSON(http.StatusOK, pages)
+}
+
+// ดึง summaries ตาม document_id
+func (h *FileHandler) GetSummaryByDocumentID(c *gin.Context) {
+	docIDStr := c.Param("document_id")
+	var docID int
+	fmt.Sscanf(docIDStr, "%d", &docID)
 
 	summary, err := h.fileservice.GetSummaryByDocumentID(docID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "ไม่พบสรุปของไฟล์นี้"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"summary": summary})
+
+	c.JSON(http.StatusOK, summary)
+}
+
+// ลบไฟล์
+func (h *FileHandler) DeleteFile(c *gin.Context) {
+	idStr := c.Param("document_id")
+	var id int
+	fmt.Sscanf(idStr, "%d", &id)
+
+	if err := h.fileservice.DeleteFile(id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "ไม่พบไฟล์นี้"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "ลบไฟล์สำเร็จ"})
 }

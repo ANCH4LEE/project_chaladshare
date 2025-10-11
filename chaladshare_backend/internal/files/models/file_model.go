@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-//ข้อมูลไฟล์ที่อัปโหลด
+// ข้อมูลไฟล์ที่อัปโหลด
 type Document struct {
 	DocumentID      int       `json:"document_id"`
 	DocumentUserID  int       `json:"document_user_id"`
@@ -10,14 +10,19 @@ type Document struct {
 	DocumentURL     string    `json:"document_url"`
 	StorageProvider string    `json:"storage_provider"`
 	UploadedAt      time.Time `json:"uploaded_at"`
-
-	//เพิ่มตรงนี้
-	// ThumbnailURL string   `json:"thumbnail_url,omitempty"` // preview หน้าหลัก
-	// PageCount    int      `json:"page_count,omitempty"`    // จำนวนหน้าใน PDF
-	// PageURLs     []string `json:"page_urls,omitempty"`     // ลิงค์ภาพแต่ละหน้า
+	PageCount       int       `json:"page_count"`
 }
 
-//เก็บข้อมูลจากไฟล์ที่สรุปเนื้อหาด้วย AI
+//
+type DocumentPage struct {
+	DocPageID  int       `json:"doc_page_id"`
+	DocumentID int       `json:"document_id"`
+	PageIndex  int       `json:"page_index"`
+	ImageURL   string    `json:"image_url"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+// เก็บข้อมูลจากไฟล์ที่สรุปเนื้อหาด้วย AI
 type Summary struct {
 	SummaryID        int       `json:"summary_id"`
 	SummaryText      string    `json:"summary_text"`
@@ -27,22 +32,23 @@ type Summary struct {
 	DocumentID       int       `json:"document_id"`
 }
 
-//ผู้ใช้อัปโหลดไฟล์
-type UploadRequest struct {
-	DocumentName string `json:"document_name" binding:"required"`
-	DocumentURL  string `json:"document_url" binding:"required"`
-	Storage      string `json:"storage_provider" binding:"required"`
-	UserID       int    `json:"user_id"`
+// ผู้ใช้อัปโหลดไฟล์
+type UploadFrom struct {
+	UserID int `form:"user_id"`
 }
 
-//response ตอนอัปโหลดสำเร็จ
+type UploadRequest struct {
+	UserID          int      `json:"user_id" binding:"required"`
+	DocumentName    string   `json:"document_name" binding:"required"`
+	DocumentURL     string   `json:"document_url" binding:"required"`
+	StorageProvider string   `json:"storage_provider" binding:"required"`
+	Images          []string `json:"images" binding:"required"` // path ของภาพแต่ละหน้า
+}
+
+// response ตอนอัปโหลดสำเร็จ
 type UploadResponse struct {
 	Message    string   `json:"message"`
 	File       Document `json:"file"`
 	FileURL    string   `json:"file_url"`
 	DocumentID int      `json:"document_id"`
-
-	//เพิ่ม
-	// PageURLs     []string `json:"page_urls,omitempty"`     // ส่งกลับ list ของรูป
-	// ThumbnailURL string   `json:"thumbnail_url,omitempty"` // ส่งกลับรูป preview
 }

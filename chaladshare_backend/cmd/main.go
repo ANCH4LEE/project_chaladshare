@@ -62,14 +62,8 @@ func main() {
 
 	//post repo service handler
 	postRepository := PostRepo.NewPostRepository(db.GetDB())
-	likeRepository := PostRepo.NewLikeRepository(db.GetDB())
-	saveRepository := PostRepo.NewSaveRepository(db.GetDB())
-
 	postService := PostService.NewPostService(postRepository)
-	likeService := PostService.NewLikeService(likeRepository)
-	saveService := PostService.NewSaveService(saveRepository)
-
-	postHandler := PostHandler.NewPostHandler(postService, likeService, saveService)
+	postHandler := PostHandler.NewPostHandler(postService)
 
 	go func() {
 		for {
@@ -135,10 +129,11 @@ func main() {
 	//file
 	fileRoutes := v1.Group("/files")
 	{
-		fileRoutes.POST("/upload", fileHandler.UploadFile)
-		fileRoutes.GET("/user/:user_id", fileHandler.GetFilesByUserID)
-		fileRoutes.POST("/summary", fileHandler.SaveSummary)
-		fileRoutes.GET("/summary/:document_id", fileHandler.GetSummaryByDocumentID)
+		fileRoutes.POST("/upload", fileHandler.UploadFile)                          // อัปโหลดไฟล์ + แปลงภาพ + บันทึกลง DB
+		fileRoutes.GET("/user/:user_id", fileHandler.GetFilesByUserID)              // ดึงไฟล์ทั้งหมดของ user
+		fileRoutes.GET("/:document_id/pages", fileHandler.GetDocumentPages)         // ดึงภาพของแต่ละหน้า
+		fileRoutes.GET("/:document_id/summary", fileHandler.GetSummaryByDocumentID) // ดึงสรุปของไฟล์
+		fileRoutes.DELETE("/:document_id", fileHandler.DeleteFile)                  // ลบไฟล์
 	}
 
 	//post liked saved
@@ -149,12 +144,6 @@ func main() {
 		postRoutes.GET("/:id", postHandler.GetPostByID)
 		postRoutes.PUT("/:id", postHandler.UpdatePost)
 		postRoutes.DELETE("/:id", postHandler.DeletePost)
-
-		postRoutes.POST("/:id/like", postHandler.LikePost)
-		postRoutes.DELETE("/:id/like", postHandler.UnlikePost)
-
-		postRoutes.POST("/:id/save", postHandler.SavePost)
-		postRoutes.DELETE("/:id/save", postHandler.UnsavePost)
 	}
 
 	//Run Server
