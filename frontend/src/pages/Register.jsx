@@ -22,28 +22,33 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setshowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const validateEmail = (email) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
-  };
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const handleChange = (e) => {
     setForm({
       ...formData,
-      [e.target.name]: e.target.value,
-    });
+      [e.target.name]: e.target.value,});
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
 
-    if (!formData.userEmail) {
+    const email = formData.userEmail.trim().toLowerCase();
+    const username = formData.username.trim();
+
+    if (!email) {
       setError("กรุณากรอกอีเมล");
       return;
     }
-    if (!validateEmail(formData.userEmail)) {
+    if (!validateEmail(email)) {
       setError("รูปแบบอีเมลไม่ถูกต้อง");
+      return;
+    }
+    if (!username) {
+      setError("กรุณากรอกชื่อผู้ใช้");
       return;
     }
     if (!formData.password) {
@@ -55,35 +60,26 @@ const Register = () => {
       return;
     }
 
-    axios
-      .post("http://localhost:8080/api/v1/auth/register", {
-        email: formData.userEmail,
-        username: formData.username,
+    try {
+      setLoading(true);
+      const res = await axios.post("/auth/register", {
+        email,
+        username,
         password: formData.password,
-      })
-      .then((response) => {
-        console.log("Register success:", response.data);
-        alert("สมัครสมาชิกสำเร็จ!");
-        setError("");
-
-        // ✅ ดึงข้อมูลผู้ใช้จาก backend (auth_handler.go ส่งกลับภายใต้ key "user")
-        const user = response.data.user;
-
-        // ✅ เก็บใน localStorage
-        localStorage.setItem("user_id", user.id);
-        localStorage.setItem("username", user.username);
-        localStorage.setItem("email", user.email);
-
-        console.log("User stored:", localStorage.getItem("user_id"));
-
-        navigate("/home");
-      })
-      .catch((error) => {
-        console.error("Register error:", error);
-        setError(
-          error.response?.data?.error || "เกิดข้อผิดพลาดในการสมัครสมาชิก"
-        );
       });
+
+      alert("สมัครสมาชิกสำเร็จ!");
+      navigate("/home", { replace: true });
+      
+    } catch (err) {
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.detail ||
+        "เกิดข้อผิดพลาดในการสมัครสมาชิก";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -186,7 +182,7 @@ const Register = () => {
 
           <div className="ClickToRegis">
             <p>คุณมีบัญชีแล้ว?</p>
-            <Link to="/">เข้าสู่ระบบ</Link>
+            <Link to="/login">เข้าสู่ระบบ</Link>
           </div>
         </div>
       </div>

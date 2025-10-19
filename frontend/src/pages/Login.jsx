@@ -10,20 +10,14 @@ import bg from "../assets/bg.jpg";
 import logo from "../assets/logo.png";
 
 const Login = () => {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
-
-  const navigate = useNavigate();
+  const [formData, setFormData] = useState({email: "",password: "",});
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState(""); // เก็บข้อความ error
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   // ฟังก์ชันตรวจสอบรูปแบบอีเมล
-  const validateEmail = (email) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
-  };
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const handleChange = (e) => {
     setFormData({
@@ -32,48 +26,41 @@ const Login = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async(e) => {
     e.preventDefault();
+    setError("");
 
-    if (!formData.email) {
+  const email = formData.email.trim().toLowerCase();
+  const password = formData.password;
+
+    if (!email) {
       setError("กรุณากรอกอีเมล");
-      return;
+      return; 
     }
-    if (!validateEmail(formData.email)) {
+
+    if (!validateEmail(email)) {
       setError("รูปแบบอีเมลไม่ถูกต้อง");
       return;
     }
-    if (!formData.password) {
+
+    if (!password) {
       setError("กรุณากรอกรหัสผ่าน");
       return;
     }
-
-    axios
-      .post("http://localhost:8080/api/v1/auth/login", formData)
-      .then((response) => {
-        console.log("Login success:", response.data);
-        setError("");
-
-        // ✅ ดึงข้อมูลผู้ใช้จาก backend (auth_handler.go ส่งกลับมาภายใต้ key "user")
-        const user = response.data.user;
-
-        // ✅ เก็บข้อมูลใน localStorage
-        localStorage.setItem("user_id", user.id);
-        localStorage.setItem("username", user.username);
-        localStorage.setItem("email", user.email);
-
-        // (ถ้าอยากเช็ก)
-        console.log("User stored:", localStorage.getItem("user_id"));
-
-        // ✅ ไปหน้า home ได้เลย
-        navigate("/home");
-
-        navigate("/home");
-      })
-      .catch((error) => {
-        console.error("Login error:", error);
-        setError(error.response?.data?.error || "เข้าสู่ระบบไม่สำเร็จ");
-      });
+  
+    try {
+    setLoading(true);
+    const res = await axios.post("/auth/login", { email, password });
+     if (res.status === 200) navigate("/home");
+    } catch (err) {
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.detail ||
+        "เข้าสู่ระบบไม่สำเร็จ";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -136,8 +123,9 @@ const Login = () => {
             <button
               type="submit"
               className="mb-3 p-2 border border-gray-300 rounded"
+              disabled={loading}
             >
-              เข้าสู่ระบบ
+              {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
             </button>
             {/* error message */}
             {error && (

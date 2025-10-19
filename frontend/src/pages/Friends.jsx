@@ -6,6 +6,7 @@ import React, { useMemo, useState } from "react";
 import { IoSearch } from "react-icons/io5";
 import Sidebar from "./Sidebar";
 import "../component/Friends.css";
+import author2 from "../assets/author2.jpg"
 
 const Friends = () => {
   const [friends, setFriends] = useState([
@@ -93,7 +94,7 @@ const Friends = () => {
                       className="friends-avatar"
                       src={f.avatar}
                       alt={`${f.name} avatar`}
-                      onError={(e) => (e.currentTarget.src = "img/author2.jpg")}
+                      onError={(e) => (e.currentTarget.src = author2)}
                     />
                     <div className="friends-name">
                       <span className="friends-name-main">{f.name}</span>

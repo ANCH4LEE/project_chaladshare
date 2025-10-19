@@ -3,8 +3,22 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import axios from "axios";
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
+axios.defaults.baseURL = "http://localhost:8080/api/v1";
+axios.defaults.withCredentials = true;
+
+axios.interceptors.response.use(
+  (r) => r,
+  (err) => {
+    if (err?.response?.status === 401) {
+      window.location.replace("/");
+    }
+    return Promise.reject(err);
+  }
+);
+
 root.render(
   <React.StrictMode>
     <App />

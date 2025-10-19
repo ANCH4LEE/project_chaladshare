@@ -10,16 +10,13 @@ import Sidebar from "./Sidebar";
 import "../component/PostDetail.css";
 
 const API_HOST = "http://localhost:8080";
-const API_BASE = `${API_HOST}/api/v1`;
 
 const toAbsUrl = (p) => {
   if (!p) return "";
   if (p.startsWith("http")) return p;
-  // ตัดจุดนำหน้า แล้วเติม / ข้างหน้าเสมอ
   const clean = p.replace(/^\./, "");
   return `${API_HOST}${clean.startsWith("/") ? clean : `/${clean}`}`;
 };
-
 
 const PostDetail = () => {
   const { id } = useParams();
@@ -39,8 +36,13 @@ const PostDetail = () => {
         setLoading(true);
         setErr("");
 
-        const res = await axios.get(`${API_BASE}/posts/${id}`);
-        const data = res?.data?.data || res?.data || {};
+        const res = await axios.get(`/posts/${id}`);
+        const payload = res?.data?.data ?? res?.data ?? {};
+        const data = payload?.post ?? payload ?? {};
+        if (!data || (!data.post_id && !data.id)) {
+          setErr("ไม่พบโพสต์");
+          return;
+        }
 
         const mapped = {
           id: data.post_id,
@@ -60,44 +62,56 @@ const PostDetail = () => {
         setLikes(mapped.like_count || 0);
         setLiked(!!mapped.is_liked);
       } catch (e) {
-        setErr(e?.response?.data?.error || e.message || "โหลดโพสต์ล้มเหลว");
+        const st = e?.response?.status;
+        if (st === 403) setErr("คุณไม่มีสิทธิ์ดูโพสต์นี้");
+        else if (st === 404) setErr("ไม่พบโพสต์");
+        else setErr(e?.response?.data?.error || e.message || "โหลดโพสต์ล้มเหลว");
       } finally {
         setLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, navigate]);
 
   // ภาพ
   useEffect(() => {
     if (!post?.post_document_id) return;
-
+    let cancelled = false;
     (async () => {
       try {
-        const res = await axios.get(
-          `${API_BASE}/files/${post.post_document_id}/pages`
-        );
+        const res = await axios.get(`/posts/pages/${post.id}`);
         const items = Array.isArray(res?.data) ? res.data : [];
-        
-        setPages(items.map((pg) => ({ ...pg, image_url: toAbsUrl(pg.image_url) })));
+        if (!cancelled) {
+          setPages(items.map((pg) => ({
+            ...pg,
+            image_url: toAbsUrl(pg?.image_url) || "/img/pdf-placeholder.jpg",
+          })));
+        }
       } catch (e) {
-        console.error("Error loading pages:", e);
+        const st = e?.response?.status;
+        if (st === 403) setErr("คุณไม่มีสิทธิ์ดูไฟล์เอกสารนี้");
+        else if (st === 404) setErr("ไม่พบหน้าเอกสาร");
+        else console.error("Error loading pages:", e);
       }
     })();
-  }, [post]);
+    return () => { cancelled = true; };
+  }, [post?.post_document_id]);
 
   // toggle like
   const toggleLike = async () => {
     try {
       if (liked) {
-        await axios.delete(`${API_BASE}/posts/${id}/like`);
+        await axios.delete(`/posts/${id}/like`);
         setLikes((prev) => prev - 1);
       } else {
-        await axios.post(`${API_BASE}/posts/${id}/like`);
+        await axios.post(`/posts/${id}/like`);
         setLikes((prev) => prev + 1);
       }
       setLiked(!liked);
     } catch (e) {
-      console.error("Like toggle failed:", e);
+      const st = e?.response?.status;
+      if (st === 403) setErr("ไม่มีสิทธิ์กดไลก์โพสต์นี้");
+      else if (st === 404) setErr("ไม่พบโพสต์");
+      else console.error("Like toggle failed:", e);
     }
   };
 
@@ -125,9 +139,8 @@ const PostDetail = () => {
       </div>
     );
 
-  const isPdf = post.file_url?.toLowerCase().endsWith(".pdf");
-  const visibilityText =
-    post.visibility === "friends" ? "เฉพาะเพื่อน" : "สาธารณะ";
+  const isPdf = Boolean(post.post_document_id) || (/\.pdf$/i.test(post.file_url || ""));
+  const visibilityText = post.visibility === "friends" ? "เฉพาะเพื่อน" : "สาธารณะ";
 
   return (
     <div className="post-detail-page">
@@ -137,7 +150,7 @@ const PostDetail = () => {
         {/* ปุ่มย้อนกลับ */}
         <div
           className="back-btn"
-          onClick={() => navigate("/home")}
+          onClick={() => navigate(-1)}
           style={{ cursor: "pointer" }}
         >
           <FaArrowLeft />
@@ -173,11 +186,7 @@ const PostDetail = () => {
               <div>ไม่พบภาพในเอกสาร</div>
             )
           ) : (
-            <img
-              src={post.file_url || "/img/no-image.png"}
-              alt="summary"
-              className="post-img"
-            />
+            <img src={(post.file_url && toAbsUrl(post.file_url)) || "/img/no-image.png"} />
           )}
         </div>
 
