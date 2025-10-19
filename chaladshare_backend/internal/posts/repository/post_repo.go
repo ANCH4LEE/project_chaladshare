@@ -17,6 +17,7 @@ type PostRepository interface {
 	UpdatePost(post *models.Post) error                   //update foe edit title, description
 	DeletePost(postID int) error                          //delete post
 	InitPostStats(postID int) error                       //มีโพสต์ใหม่ให้สร้างบันทึก like = 0, save = 0
+	GetPostOwnerID(postID int) (int, error)
 }
 
 type postRepository struct {
@@ -43,12 +44,8 @@ func (r *postRepository) CreatePost(post *models.Post) (int, error) {
 
 	var postID int
 	err := r.db.QueryRow(query,
-		post.AuthorUserID,
-		post.Title,
-		post.Description,
-		post.Visibility,
-		post.DocumentID,
-		post.SummaryID,
+		post.AuthorUserID, post.Title, post.Description,
+		post.Visibility, post.DocumentID, post.SummaryID,
 	).Scan(&postID)
 
 	if err != nil {
@@ -231,4 +228,13 @@ func (r *postRepository) DeletePost(postID int) error {
 	query := `DELETE FROM posts WHERE post_id = $1`
 	_, err := r.db.Exec(query, postID)
 	return err
+}
+
+func (r *postRepository) GetPostOwnerID(postID int) (int, error) {
+	const query = `SELECT post_author_user_id FROM posts WHERE post_id = $1`
+	var owner int
+	if err := r.db.QueryRow(query, postID).Scan(&owner); err != nil {
+		return 0, err
+	}
+	return owner, nil
 }

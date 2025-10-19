@@ -10,8 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"chaladshare_backend/internal/config"
-	// "chaladshare_backend/internal/middleware"
 	"chaladshare_backend/internal/connectdb"
+	"chaladshare_backend/internal/middleware"
 
 	AuthHandler "chaladshare_backend/internal/auth/handlers"
 	AuthRepo "chaladshare_backend/internal/auth/repository"
@@ -52,8 +52,8 @@ func main() {
 
 	//auth repo service handler
 	authRepository := AuthRepo.NewAuthRepository(db.GetDB())
-	authService := AuthService.NewAuthService(authRepository)
-	authHandler := AuthHandler.NewAuthHandler(authService)
+	authService := AuthService.NewAuthService(authRepository, []byte(cfg.JWTSecret), cfg.TokenTTLMinutes)
+	authHandler := AuthHandler.NewAuthHandler(authService, cfg.CookieName, false)
 
 	//file repo service handler
 	fileRepository := FileRepo.NewFileRepository(db.GetDB())
@@ -63,7 +63,7 @@ func main() {
 	//post repo service handler
 	postRepository := PostRepo.NewPostRepository(db.GetDB())
 	postService := PostService.NewPostService(postRepository)
-	postHandler := PostHandler.NewPostHandler(postService)
+	postHandler := PostHandler.NewPostHandler(postService, fileService)
 
 	go func() {
 		for {
@@ -83,7 +83,7 @@ func main() {
 	r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowOrigins:     []string{cfg.AllowOrigin},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Accept"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -115,35 +115,38 @@ func main() {
 	{
 		authRoutes.POST("/register", authHandler.Register)
 		authRoutes.POST("/login", authHandler.Login)
+		authRoutes.POST("/logout", authHandler.Logout)
+
 		authRoutes.GET("/users", authHandler.GetAllUsers)
 		authRoutes.GET("/users/:id", authHandler.GetUserByID)
 	}
 
-	//Protected routes (ต้องตรวจ JWT ก่อนเข้า)
-	/*{protected := v1.Group("/user")
-	protected.Use(middleware.JWTAuthMiddleware())
+	// --- Protected (ต้องมี JWT) ---
+	protected := v1.Group("/")
+	protected.Use(middleware.JWT([]byte(cfg.JWTSecret), cfg.CookieName))
 	{
-		protected.GET("/profile", authHandler.GetProfile)
-	}}*/
 
-	//file
-	fileRoutes := v1.Group("/files")
-	{
-		fileRoutes.POST("/upload", fileHandler.UploadFile)                          // อัปโหลดไฟล์ + แปลงภาพ + บันทึกลง DB
-		fileRoutes.GET("/user/:user_id", fileHandler.GetFilesByUserID)              // ดึงไฟล์ทั้งหมดของ user
-		fileRoutes.GET("/:document_id/pages", fileHandler.GetDocumentPages)         // ดึงภาพของแต่ละหน้า
-		fileRoutes.GET("/:document_id/summary", fileHandler.GetSummaryByDocumentID) // ดึงสรุปของไฟล์
-		fileRoutes.DELETE("/:document_id", fileHandler.DeleteFile)                  // ลบไฟล์
-	}
+		// Post
+		posts := protected.Group("/posts")
+		{
+			posts.GET("", postHandler.GetAllPosts)
+			posts.GET("/:id", postHandler.GetPostByID)
+			posts.GET("/pages/:post_id", postHandler.GetPostPages)
 
-	//post liked saved
-	postRoutes := v1.Group("/posts")
-	{
-		postRoutes.POST("", postHandler.CreatePost)
-		postRoutes.GET("", postHandler.GetAllPosts)
-		postRoutes.GET("/:id", postHandler.GetPostByID)
-		postRoutes.PUT("/:id", postHandler.UpdatePost)
-		postRoutes.DELETE("/:id", postHandler.DeletePost)
+			posts.POST("", postHandler.CreatePost)
+			posts.PUT("/:id", postHandler.UpdatePost)
+			posts.DELETE("/:id", postHandler.DeletePost)
+		}
+
+		// Files
+		files := protected.Group("/files")
+		{
+			files.POST("/upload", fileHandler.UploadFile)
+			files.GET("/user/:user_id", fileHandler.GetFilesByUserID)
+			files.GET("/:document_id/pages", fileHandler.GetDocumentPages)
+			files.GET("/:document_id/summary", fileHandler.GetSummaryByDocumentID)
+			files.DELETE("/:document_id", fileHandler.DeleteFile)
+		}
 	}
 
 	//Run Server

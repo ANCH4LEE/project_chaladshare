@@ -12,10 +12,12 @@ import (
 
 type AuthHandler struct {
 	authService service.AuthService
+	cookieName  string
+	secure      bool
 }
 
-func NewAuthHandler(authService service.AuthService) *AuthHandler {
-	return &AuthHandler{authService: authService}
+func NewAuthHandler(authService service.AuthService, cookieName string, secure bool) *AuthHandler {
+	return &AuthHandler{authService: authService, cookieName: cookieName, secure: secure}
 }
 
 // Get all user
@@ -66,7 +68,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 // Login
 func (h *AuthHandler) Login(c *gin.Context) {
-	var req models.LoginRequest //
+	var req models.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid JSON format"})
 		return
@@ -74,12 +76,27 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	user, err := h.authService.Login(req.Email, req.Password)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Login successful",
-		"user":    user,
-	})
+	token, err := h.authService.IssueToken(user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "issue token failed"})
+		return
+	}
+
+	// write httpOnly cookie
+	c.SetCookie(h.cookieName, token, 0, "/", "", h.secure, true)
+
+	// respone don;t show password_hash
+	resp := models.AuthResponse{
+		ID: user.ID, Email: user.Email, Username: user.Username, CreatedAt: user.CreatedAt, Status: user.Status,
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Login successful", "user": resp})
+}
+
+func (h *AuthHandler) Logout(c *gin.Context) {
+	c.SetCookie(h.cookieName, "", -1, "/", "", h.secure, true)
+	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }

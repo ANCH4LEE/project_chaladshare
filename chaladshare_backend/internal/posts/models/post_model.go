@@ -5,7 +5,7 @@ import "time"
 // post
 type Post struct {
 	PostID       int       `json:"post_id"`
-	AuthorUserID int       `json:"author_user_id"`
+	AuthorUserID int       `json:"-"`
 	Title        string    `json:"post_title"`
 	Description  string    `json:"post_description"`
 	Visibility   string    `json:"post_visibility"`

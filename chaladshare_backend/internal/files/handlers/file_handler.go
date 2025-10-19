@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -25,9 +26,9 @@ func NewFileHandler(fileservice service.FileService) *FileHandler {
 
 // upload file + แปลงภาพ + ลง db
 func (h *FileHandler) UploadFile(c *gin.Context) {
-	var form models.UploadFrom
-	if err := c.ShouldBind(&form); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "กรุณาระบุ user_id"})
+	authUserID := c.GetInt("user_id")
+	if authUserID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
@@ -52,7 +53,7 @@ func (h *FileHandler) UploadFile(c *gin.Context) {
 
 	// เตรียมข้อมูลเพื่อส่งให้ service
 	req := &models.UploadRequest{
-		UserID:          form.UserID,
+		UserID:          authUserID,
 		DocumentName:    file.Filename,
 		DocumentURL:     savePath,
 		StorageProvider: "local",
@@ -70,11 +71,20 @@ func (h *FileHandler) UploadFile(c *gin.Context) {
 
 // ดึงไฟล์ทั้งหมดของผู้ใช้
 func (h *FileHandler) GetFilesByUserID(c *gin.Context) {
-	userIDStr := c.Param("user_id")
-	var userID int
-	fmt.Sscanf(userIDStr, "%d", &userID)
+	authUserID := c.GetInt("user_id")
+	targetUserID, err := strconv.Atoi(c.Param("user_id"))
 
-	files, err := h.fileservice.GetFilesByUserID(userID)
+	if err != nil || targetUserID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
+		return
+	}
+
+	if authUserID != targetUserID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		return
+	}
+
+	files, err := h.fileservice.GetFilesByUserID(targetUserID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "ไม่พบไฟล์ของผู้ใช้นี้"})
@@ -89,9 +99,23 @@ func (h *FileHandler) GetFilesByUserID(c *gin.Context) {
 
 // ดึงภาพของแต่ละหน้า PDF
 func (h *FileHandler) GetDocumentPages(c *gin.Context) {
-	docIDStr := c.Param("document_id")
-	var docID int
-	fmt.Sscanf(docIDStr, "%d", &docID)
+	authUserID := c.GetInt("user_id")
+	docID, err := strconv.Atoi(c.Param("document_id"))
+
+	if err != nil || docID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid document_id"})
+		return
+	}
+
+	ok, err := h.fileservice.IsOwner(docID, authUserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if !ok {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		return
+	}
 
 	pages, err := h.fileservice.GetDocumentPages(docID)
 	if err != nil {
@@ -108,9 +132,21 @@ func (h *FileHandler) GetDocumentPages(c *gin.Context) {
 
 // ดึง summaries ตาม document_id
 func (h *FileHandler) GetSummaryByDocumentID(c *gin.Context) {
-	docIDStr := c.Param("document_id")
-	var docID int
-	fmt.Sscanf(docIDStr, "%d", &docID)
+	authUserID := c.GetInt("user_id")
+	docID, err := strconv.Atoi(c.Param("document_id"))
+	if err != nil || docID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid document_id"})
+		return
+	}
+	ok, err := h.fileservice.IsOwner(docID, authUserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if !ok {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		return
+	}
 
 	summary, err := h.fileservice.GetSummaryByDocumentID(docID)
 	if err != nil {
@@ -127,16 +163,38 @@ func (h *FileHandler) GetSummaryByDocumentID(c *gin.Context) {
 
 // ลบไฟล์
 func (h *FileHandler) DeleteFile(c *gin.Context) {
-	idStr := c.Param("document_id")
-	var id int
-	fmt.Sscanf(idStr, "%d", &id)
+	// ดึง user_id จาก JWT (middleware ตั้งค่าไว้)
+	authUserID := c.GetInt("user_id")
+	if authUserID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
-	if err := h.fileservice.DeleteFile(id); err != nil {
+	// อ่าน document_id จาก path และตรวจความถูกต้อง
+	docID, err := strconv.Atoi(c.Param("document_id"))
+	if err != nil || docID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid document_id"})
+		return
+	}
+
+	// อนุญาตเฉพาะเจ้าของไฟล์เท่านั้น
+	ok, err := h.fileservice.IsOwner(docID, authUserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if !ok {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		return
+	}
+
+	// ลบไฟล์
+	if err := h.fileservice.DeleteFile(docID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "ไม่พบไฟล์นี้"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
 		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

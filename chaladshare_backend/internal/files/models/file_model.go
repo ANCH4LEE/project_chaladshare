@@ -13,7 +13,6 @@ type Document struct {
 	PageCount       int       `json:"page_count"`
 }
 
-//
 type DocumentPage struct {
 	DocPageID  int       `json:"doc_page_id"`
 	DocumentID int       `json:"document_id"`
@@ -32,17 +31,12 @@ type Summary struct {
 	DocumentID       int       `json:"document_id"`
 }
 
-// ผู้ใช้อัปโหลดไฟล์
-type UploadFrom struct {
-	UserID int `form:"user_id"`
-}
-
 type UploadRequest struct {
-	UserID          int      `json:"user_id" binding:"required"`
-	DocumentName    string   `json:"document_name" binding:"required"`
-	DocumentURL     string   `json:"document_url" binding:"required"`
-	StorageProvider string   `json:"storage_provider" binding:"required"`
-	Images          []string `json:"images" binding:"required"` // path ของภาพแต่ละหน้า
+	UserID          int      `json:"-"`
+	DocumentName    string   `json:"document_name"`
+	DocumentURL     string   `json:"document_url"`
+	StorageProvider string   `json:"storage_provider"`
+	Images          []string `json:"images"` // path ของภาพแต่ละหน้า
 }
 
 // response ตอนอัปโหลดสำเร็จ

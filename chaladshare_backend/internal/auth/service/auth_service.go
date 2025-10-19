@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
 	"chaladshare_backend/internal/auth/models"
@@ -17,14 +19,32 @@ type AuthService interface {
 	GetUserByEmail(email string) (*models.User, error)
 	Register(email, username, password string) (*models.User, error)
 	Login(email, password string) (*models.User, error)
+	IssueToken(userID int) (string, error)
 }
 
 type authService struct {
-	userRepo repository.AuthRepository
+	userRepo        repository.AuthRepository
+	jwtSecret       []byte
+	tokenTTLMinutes int
 }
 
-func NewAuthService(userRepo repository.AuthRepository) AuthService {
-	return &authService{userRepo: userRepo}
+func NewAuthService(userRepo repository.AuthRepository, secret []byte, ttlMin int) AuthService {
+	return &authService{
+		userRepo:        userRepo,
+		jwtSecret:       secret,
+		tokenTTLMinutes: ttlMin,
+	}
+}
+
+func (s *authService) IssueToken(userID int) (string, error) {
+	now := time.Now()
+	claims := jwt.MapClaims{
+		"user_id": userID,
+		"iat":     now.Unix(),
+		"exp":     now.Add(time.Duration(s.tokenTTLMinutes) * time.Minute).Unix(),
+	}
+	t := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return t.SignedString(s.jwtSecret)
 }
 
 // ผู้ใช้ทั้งหมด
@@ -54,11 +74,17 @@ func (s *authService) GetUserByEmail(email string) (*models.User, error) {
 
 // func register
 func (s *authService) Register(email, username, password string) (*models.User, error) {
-	if strings.TrimSpace(email) == "" || strings.TrimSpace(username) == "" || strings.TrimSpace(password) == "" {
+	email = strings.ToLower(strings.TrimSpace(email))
+	username = strings.TrimSpace(username)
+
+	if email == "" || username == "" || strings.TrimSpace(password) == "" {
 		return nil, errors.New("email, username and password are required")
 	}
 	if !strings.Contains(email, "@") {
 		return nil, errors.New("invalid email format")
+	}
+	if existing, _ := s.userRepo.GetUserByEmail(email); existing != nil {
+		return nil, errors.New("email already in use")
 	}
 
 	// เข้ารหัสรหัสผ่าน
@@ -78,14 +104,16 @@ func (s *authService) Register(email, username, password string) (*models.User, 
 
 // func login
 func (s *authService) Login(email, password string) (*models.User, error) {
-	if strings.TrimSpace(email) == "" || strings.TrimSpace(password) == "" {
+	email = strings.ToLower(strings.TrimSpace(email))
+
+	if email == "" || strings.TrimSpace(password) == "" {
 		return nil, errors.New("email and password are required")
 	}
 
 	// ดึงข้อมูลผู้ใช้จาก email
-	user, err := s.userRepo.GetUserByEmail(email) // ❗ ถ้ายังไม่มีฟังก์ชันนี้ เธอใช้ GetAllUsers แล้ว loop เช็ค email ก็ได้
-	if err != nil {
-		return nil, errors.New("user not found")
+	user, err := s.userRepo.GetUserByEmail(email)
+	if err != nil || user == nil {
+		return nil, errors.New("invalid email")
 	}
 
 	// ตรวจสอบรหัสผ่าน

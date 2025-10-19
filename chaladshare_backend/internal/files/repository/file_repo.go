@@ -14,6 +14,8 @@ type FileRepository interface {
 	GetDocumentByUserID(userID int) ([]models.Document, error)
 	DeleteDocument(id int) error
 
+	GetDocumentOwnerID(documentID int) (int, error)
+
 	// document pages
 	GetDocumentPages(docID int) ([]models.DocumentPage, error)
 
@@ -155,4 +157,17 @@ func (r *fileRepository) DeleteDocument(id int) error {
 		return sql.ErrNoRows
 	}
 	return nil
+}
+
+func (r *fileRepository) GetDocumentOwnerID(documentID int) (int, error) {
+	var ownerID int
+	err := r.db.QueryRow(`
+        SELECT document_user_id
+        FROM documents
+        WHERE document_id = $1
+    `, documentID).Scan(&ownerID)
+	if err != nil {
+		return 0, err // sql.ErrNoRows ถ้าไม่พบ
+	}
+	return ownerID, nil
 }

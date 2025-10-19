@@ -17,6 +17,10 @@ type Config struct {
 	DatabaseName     string
 	DatabaseSSLMode  string
 	JWTSecret        string
+
+	TokenTTLMinutes int
+	CookieName      string
+	AllowOrigin     string
 }
 
 func LoadConfig() (Config, error) {
@@ -34,7 +38,12 @@ func LoadConfig() (Config, error) {
 	viper.SetDefault("POSTGRES.DBNAME", "chaladshare")
 	viper.SetDefault("POSTGRES.SSLMODE", "disable")
 	viper.SetDefault("JWT.SECRET", "changeme")
-	// viper.SetDefault("APP.PORT", "8080")
+	viper.SetDefault("APP.PORT", "8080")
+
+	// ADD THIS PART
+	viper.SetDefault("JWT.TTL_MINUTES", 30)
+	viper.SetDefault("COOKIE.NAME", "access_token")
+	viper.SetDefault("ALLOW.ORIGIN", "http://localhost:3000")
 
 	// Set config values
 	config := Config{
@@ -46,6 +55,11 @@ func LoadConfig() (Config, error) {
 		DatabaseName:     viper.GetString("POSTGRES.DBNAME"),
 		DatabaseSSLMode:  viper.GetString("POSTGRES.SSLMODE"),
 		JWTSecret:        viper.GetString("JWT.SECRET"),
+
+		// ADD THIS PATH
+		TokenTTLMinutes: viper.GetInt("JWT.TTL_MINUTES"),
+		CookieName:      viper.GetString("COOKIE.NAME"),
+		AllowOrigin:     viper.GetString("ALLOW.ORIGIN"),
 	}
 
 	return config, nil

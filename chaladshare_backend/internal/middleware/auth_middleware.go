@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -8,28 +9,38 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtSecret = []byte("chaladshare_secret")
+const CtxUserID = "user_id"
 
-func JWTAuthMiddleware() gin.HandlerFunc {
+func JWT(secret []byte, cookieName string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing or invalid Authorization header"})
-			c.Abort()
-			return
+		var tokenStr string
+		if a := c.GetHeader("Authorization"); strings.HasPrefix(a, "Bearer ") {
+			tokenStr = strings.TrimPrefix(a, "Bearer ")
+		} else if v, err := c.Cookie(cookieName); err == nil {
+			tokenStr = v
 		}
 
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			return jwtSecret, nil
+		if tokenStr == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing token"})
+			return
+		}
+		tok, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("bad alg")
+			}
+			return secret, nil
 		})
-
-		if err != nil || !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
-			c.Abort()
+		if err != nil || !tok.Valid {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 			return
 		}
-
+		claims := tok.Claims.(jwt.MapClaims)
+		f, ok := claims["user_id"].(float64)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "bad claims"})
+			return
+		}
+		c.Set(CtxUserID, int(f))
 		c.Next()
 	}
 }

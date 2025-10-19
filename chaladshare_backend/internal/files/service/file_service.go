@@ -14,10 +14,13 @@ type FileService interface {
 	GetFilesByUserID(userID int) ([]models.Document, error)
 	DeleteFile(documentID int) error
 
+	GetDocumentOwnerID(documentID int) (int, error)
 	GetDocumentPages(docID int) ([]models.DocumentPage, error)
 
 	SaveSummary(summary *models.Summary) (*models.Summary, error)
 	GetSummaryByDocumentID(docID int) (*models.Summary, error)
+
+	IsOwner(documentID int, userID int) (bool, error)
 }
 
 type fileService struct {
@@ -116,4 +119,28 @@ func (s *fileService) GetSummaryByDocumentID(docID int) (*models.Summary, error)
 		return nil, fmt.Errorf("ไม่พบสรุปของไฟล์นี้: %v", err)
 	}
 	return summary, nil
+}
+
+// ดึง owner_id ของเอกสารจาก repository
+func (s *fileService) GetDocumentOwnerID(documentID int) (int, error) {
+	if documentID <= 0 {
+		return 0, errors.New("document_id ไม่ถูกต้อง")
+	}
+	ownerID, err := s.filerepo.GetDocumentOwnerID(documentID)
+	if err != nil {
+		return 0, fmt.Errorf("ตรวจสอบเจ้าของไฟล์ล้มเหลว: %v", err)
+	}
+	return ownerID, nil
+}
+
+// เช็คว่า userID เป็นเจ้าของไฟล์ documentID หรือไม่
+func (s *fileService) IsOwner(documentID int, userID int) (bool, error) {
+	if documentID <= 0 || userID <= 0 {
+		return false, errors.New("document_id หรือ user_id ไม่ถูกต้อง")
+	}
+	ownerID, err := s.filerepo.GetDocumentOwnerID(documentID)
+	if err != nil {
+		return false, fmt.Errorf("ตรวจสอบเจ้าของไฟล์ล้มเหลว: %v", err)
+	}
+	return ownerID == userID, nil
 }
