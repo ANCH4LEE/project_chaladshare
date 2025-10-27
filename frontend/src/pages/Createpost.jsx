@@ -78,6 +78,7 @@ const CreatePost = () => {
       const fileData = new FormData();
       fileData.append("file", formData.file);
       const uploadRes = await axios.post("/files/upload", fileData, {
+        withCredentials: true,
         headers: { "Content-Type": "multipart/form-data" },
       });
 
@@ -89,12 +90,14 @@ const CreatePost = () => {
         post_title: formData.title.trim(),
         post_description: formData.description.trim(),
         post_visibility: formData.visibility,
-        post_document_id: documentId,
-        post_summary_id: null,
+        document_id: documentId,
+        // post_summary_id: null,
         tags: parseTags(formData.tags),
       };
 
-      await axios.post("/posts", postData);
+      await axios.post("/posts", postData,
+        { withCredentials: true }
+      );
       alert("โพสต์สำเร็จ!");
       handleCancel();
     } catch (err) {

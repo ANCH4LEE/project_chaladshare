@@ -27,7 +27,6 @@ const PostDetail = () => {
   const [likes, setLikes] = useState(0);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [pages, setPages] = useState([]);
 
   // ข้อมูลโพสต์
   useEffect(() => {
@@ -65,36 +64,13 @@ const PostDetail = () => {
         const st = e?.response?.status;
         if (st === 403) setErr("คุณไม่มีสิทธิ์ดูโพสต์นี้");
         else if (st === 404) setErr("ไม่พบโพสต์");
-        else setErr(e?.response?.data?.error || e.message || "โหลดโพสต์ล้มเหลว");
+        else
+          setErr(e?.response?.data?.error || e.message || "โหลดโพสต์ล้มเหลว");
       } finally {
         setLoading(false);
       }
     })();
   }, [id, navigate]);
-
-  // ภาพ
-  useEffect(() => {
-    if (!post?.post_document_id) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await axios.get(`/posts/pages/${post.id}`);
-        const items = Array.isArray(res?.data) ? res.data : [];
-        if (!cancelled) {
-          setPages(items.map((pg) => ({
-            ...pg,
-            image_url: toAbsUrl(pg?.image_url) || "/img/pdf-placeholder.jpg",
-          })));
-        }
-      } catch (e) {
-        const st = e?.response?.status;
-        if (st === 403) setErr("คุณไม่มีสิทธิ์ดูไฟล์เอกสารนี้");
-        else if (st === 404) setErr("ไม่พบหน้าเอกสาร");
-        else console.error("Error loading pages:", e);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [post?.post_document_id]);
 
   // toggle like
   const toggleLike = async () => {
@@ -139,15 +115,17 @@ const PostDetail = () => {
       </div>
     );
 
-  const isPdf = Boolean(post.post_document_id) || (/\.pdf$/i.test(post.file_url || ""));
-  const visibilityText = post.visibility === "friends" ? "เฉพาะเพื่อน" : "สาธารณะ";
+  const isPdf =
+    Boolean(post.post_document_id) || /\.pdf$/i.test(post.file_url || "");
+  const visibilityText =
+    post.visibility === "friends" ? "เฉพาะเพื่อน" : "สาธารณะ";
 
   return (
     <div className="post-detail-page">
       <div className="post-detail">
         <Sidebar />
 
-        {/* ปุ่มย้อนกลับ */}
+        {/* button back */}
         <div
           className="back-btn"
           onClick={() => navigate(-1)}
@@ -156,7 +134,7 @@ const PostDetail = () => {
           <FaArrowLeft />
         </div>
 
-        {/* โปรไฟล์ */}
+        {/* profile */}
         <div className="user-info">
           <img
             src={post.author_profile || "/img/default-profile.png"}
@@ -169,24 +147,24 @@ const PostDetail = () => {
           </div>
         </div>
 
-        {/* รูปหรือไฟล์โพสต์ */}
+        {/* post */}
         <div className="post-image">
-          {isPdf ? (
-            pages.length > 0 ? (
-              <div className="pdf-images">
-                {pages.map((p, i) => (
-                  <img
-                    key={i}
-                    src={p.image_url}
-                    alt={`page ${i + 1}`}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div>ไม่พบภาพในเอกสาร</div>
-            )
+          {post.file_url ? (
+            <object
+              data={post.file_url}
+              type="application/pdf"
+              width="100%"
+              height="800"
+            >
+              <iframe
+                src={`${post.file_url}#view=FitH`}
+                width="100%"
+                height="800"
+                title="pdf"
+              />
+            </object>
           ) : (
-            <img src={(post.file_url && toAbsUrl(post.file_url)) || "/img/no-image.png"} />
+            <img src="/img/no-image.png" alt={post.title} />
           )}
         </div>
 

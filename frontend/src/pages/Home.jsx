@@ -82,12 +82,12 @@ const Home = () => {
         ? res.data
         : [];
 
-      const prelim = rows.map((p) => {
+      const mapped = rows.map((p) => {
         const rawUrl = p.file_url || null;
         const isPdf = /\.pdf$/i.test(rawUrl || "");
         return {
           id: p.post_id,
-          img: rawUrl && !isPdf ? toAbsUrl(rawUrl) : null,
+          img: rawUrl && !isPdf ? toAbsUrl(rawUrl) : "/img/pdf-placeholder.jpg",
           isPdf,
           documentId: p.post_document_id,
           likes: p.like_count ?? 0,
@@ -100,26 +100,7 @@ const Home = () => {
         };
       });
 
-      const withThumbs = await Promise.all(
-        prelim.map(async (item) => {
-          if (!item.isPdf) return item;
-          if (!item.documentId) {
-            return { ...item, img: "/img/pdf-placeholder.jpg" };
-          }
-          try {
-            const r = await axios.get(`/posts/pages/${item.id}`);
-            const pages = Array.isArray(r?.data) ? r.data : [];
-            const firstImg = pages[0]?.image_url
-              ? toAbsUrl(pages[0].image_url)
-              : "/img/pdf-placeholder.jpg";
-            return { ...item, img: firstImg };
-          } catch {
-            return { ...item, img: "/img/pdf-placeholder.jpg" };
-          }
-        })
-      );
-
-      if (!cancelled) setRecommendedPosts(withThumbs);
+      if (!cancelled) setRecommendedPosts(mapped);
     } catch (e) {
       if (!cancelled) {
         if (e?.response?.status === 401) {

@@ -78,7 +78,7 @@ const PostCard = ({ post }) => {
         <p>{post.tags}</p>
       </div>
 
-      {/* ✅ Toast แยกออกจาก flow การ hover */}
+      {/* Toast แยกออกจาก flow การ hover */}
       <div className="toast-container">
         {toast && <div className="mini-toast">{toast}</div>}
       </div>

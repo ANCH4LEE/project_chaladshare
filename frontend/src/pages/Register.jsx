@@ -182,7 +182,7 @@ const Register = () => {
 
           <div className="ClickToRegis">
             <p>คุณมีบัญชีแล้ว?</p>
-            <Link to="/login">เข้าสู่ระบบ</Link>
+            <Link to="/">เข้าสู่ระบบ</Link>
           </div>
         </div>
       </div>
