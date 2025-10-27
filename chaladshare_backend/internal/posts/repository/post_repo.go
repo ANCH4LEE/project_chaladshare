@@ -10,13 +10,12 @@ import (
 )
 
 type PostRepository interface {
-	CreatePost(post *models.Post) (int, error)            //สร้างโพสต์ใหม่
-	AddTags(postID int, tags []string) error              //เพิ่ม tags
-	GetAllPosts() ([]models.PostResponse, error)          //ดึง all post
-	GetPostByID(postID int) (*models.PostResponse, error) //ดึง each post
-	UpdatePost(post *models.Post) error                   //update foe edit title, description
-	DeletePost(postID int) error                          //delete post
-	InitPostStats(postID int) error                       //มีโพสต์ใหม่ให้สร้างบันทึก like = 0, save = 0
+	CreatePost(post *models.Post, tags []string) (int, error)
+	UpdatePost(post *models.Post, tags []string) error
+	DeletePost(postID int) error
+
+	GetAllPosts() ([]models.PostResponse, error)
+	GetPostByID(postID int) (*models.PostResponse, error)
 	GetPostOwnerID(postID int) (int, error)
 }
 
@@ -28,89 +27,140 @@ func NewPostRepository(db *sql.DB) PostRepository {
 	return &postRepository{db: db}
 }
 
-// สร้างโพสต์ใหม่
-func (r *postRepository) CreatePost(post *models.Post) (int, error) {
-	query := `
-		INSERT INTO posts (
-			post_author_user_id,
-			post_title,
-			post_description,
-			post_visibility,
-			post_document_id,
-			post_summary_id
-		) VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING post_id;
-	`
+func (r *postRepository) CreatePost(post *models.Post, tags []string) (int, error) {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	if post.DocumentID == nil {
+		return 0, fmt.Errorf("document_id is required")
+	}
+	var docArg interface{} = *post.DocumentID
+
+	var sumArg interface{} = nil
+	if post.SummaryID != nil { // ถ้าเป็น *int
+		sumArg = *post.SummaryID
+	}
+
+	query := `INSERT INTO posts (post_author_user_id, post_title, post_description,
+			  post_visibility, post_document_id, post_summary_id) 
+			  SELECT $1, $2, $3, $4, $5, $6
+			  FROM documents d
+			  WHERE d.document_id = $5 AND d.document_user_id = $1
+			  RETURNING post_id;`
 
 	var postID int
-	err := r.db.QueryRow(query,
+	if err := tx.QueryRow(
+		query,
 		post.AuthorUserID, post.Title, post.Description,
-		post.Visibility, post.DocumentID, post.SummaryID,
-	).Scan(&postID)
+		post.Visibility, docArg, sumArg,
+	).Scan(&postID); err != nil {
+		if err == sql.ErrNoRows {
+			return 0, fmt.Errorf("invalid document_id or not owned by user")
+		}
+		return 0, fmt.Errorf("create post: %w", err)
+	}
 
-	if err != nil {
-		return 0, fmt.Errorf("failed to create post: %v", err)
+	if len(tags) > 0 {
+		upsertTag := `INSERT INTO tags (tag_name) VALUES ($1) ON CONFLICT (tag_name) DO UPDATE
+					  SET tag_name = EXCLUDED.tag_name RETURNING tag_id;`
+
+		link := `INSERT INTO post_tags (post_tag_post_id, post_tag_tag_id)
+				 VALUES ($1, $2) ON CONFLICT DO NOTHING;`
+
+		for _, t := range tags {
+			var tagID int
+			if err := tx.QueryRow(upsertTag, t).Scan(&tagID); err != nil {
+				return 0, fmt.Errorf("upsert tag %q: %w", t, err)
+			}
+			if _, err := tx.Exec(link, postID, tagID); err != nil {
+				return 0, fmt.Errorf("link tag %q: %w", t, err)
+			}
+		}
+	}
+
+	initStats := `INSERT INTO post_stats (post_stats_post_id, post_like_count, post_save_count)
+				  VALUES ($1, 0, 0) ON CONFLICT DO NOTHING;`
+	if _, err := tx.Exec(initStats, postID); err != nil {
+		return 0, fmt.Errorf("init stats: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit: %w", err)
 	}
 	return postID, nil
 }
 
-// เพิ่ม tag
-func (r *postRepository) AddTags(postID int, tags []string) error {
-	if len(tags) == 0 {
-		return nil
+func (r *postRepository) UpdatePost(post *models.Post, tags []string) error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	res, err := tx.Exec(`UPDATE posts SET post_title = $1,
+        				 post_description = $2, post_visibility = $3, post_updated_at = now()
+    					 WHERE post_id = $4;`,
+		post.Title, post.Description, post.Visibility, post.PostID)
+	if err != nil {
+		return fmt.Errorf("update post: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return sql.ErrNoRows
 	}
 
-	for _, tag := range tags {
-		var tagID int
-		//ตรวจว่ามีแท็กนี้ยัง
-		checkQuery := `SELECT tag_id FROM tags WHERE tag_name = $1`
-		err := r.db.QueryRow(checkQuery, tag).Scan(&tagID)
+	if tags != nil {
+		if _, err := tx.Exec(`DELETE FROM post_tags WHERE post_tag_post_id = $1`, post.PostID); err != nil {
+			return fmt.Errorf("clear old tags: %w", err)
+		}
 
-		if err == sql.ErrNoRows {
-			//ไม่มี = สร้างใหม่
-			insertTag := `INSERT INTO tags (tag_name) VALUES ($1) RETURNING tag_id`
-			if err := r.db.QueryRow(insertTag, tag).Scan(&tagID); err != nil {
-				return fmt.Errorf("failed to insert tag: %v", err)
+		if len(tags) > 0 {
+			upsertTag := `INSERT INTO tags (tag_name)
+						  VALUES ($1) ON CONFLICT (tag_name) DO UPDATE
+						  SET tag_name = EXCLUDED.tag_name
+						  RETURNING tag_id;`
+
+			link := `INSERT INTO post_tags (post_tag_post_id, post_tag_tag_id)
+					 VALUES ($1, $2) ON CONFLICT DO NOTHING;`
+
+			for _, t := range tags {
+				var tagID int
+				if err := tx.QueryRow(upsertTag, t).Scan(&tagID); err != nil {
+					return fmt.Errorf("upsert tag %q: %w", t, err)
+				}
+				if _, err := tx.Exec(link, post.PostID, tagID); err != nil {
+					return fmt.Errorf("link tag %q: %w", t, err)
+				}
 			}
-		} else if err != nil {
-			return err
 		}
+	}
 
-		// เชื่อมแท็กเข้ากับโพสต์
-		linkQuery := `INSERT INTO post_tags (post_tag_post_id, post_tag_tag_id)
-		              VALUES ($1, $2) ON CONFLICT DO NOTHING`
-		if _, err := r.db.Exec(linkQuery, postID, tagID); err != nil {
-			return fmt.Errorf("failed to link tag: %v", err)
-		}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit: %w", err)
 	}
 	return nil
 }
 
-// สร้างข้อมูลในการเก็บ stat
-func (r *postRepository) InitPostStats(postID int) error {
-	query := `INSERT INTO post_stats (post_stats_post_id, post_like_count, post_save_count)
-	          VALUES ($1, 0, 0)
-	          ON CONFLICT DO NOTHING`
-	_, err := r.db.Exec(query, postID)
-	return err
+func (r *postRepository) DeletePost(postID int) error {
+	query := `DELETE FROM posts WHERE post_id = $1`
+	res, err := r.db.Exec(query, postID)
+	if err != nil {
+		return fmt.Errorf("delete post: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
-// ดึง all post
 func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
-	query := `
-	SELECT 
-		p.post_id, 
-		p.post_author_user_id,
-		u.username AS author_name,
-		p.post_title,
-		p.post_description,
-		p.post_visibility,
-		p.post_document_id,
-		p.post_summary_id,
-		p.post_created_at,
-		p.post_updated_at,
+	query := `SELECT p.post_id, p.post_author_user_id, u.username AS author_name,
+		p.post_title, p.post_description, p.post_visibility,
+		p.post_document_id, p.post_summary_id, p.post_created_at, p.post_updated_at,
 		COALESCE(ps.post_like_count, 0) AS post_like_count,
-  		COALESCE(ps.post_save_count, 0) AS post_save_count,
+		COALESCE(ps.post_save_count, 0) AS post_save_count,
 		d.document_url AS document_file_url,
 		ARRAY_REMOVE(ARRAY_AGG(DISTINCT t.tag_name), NULL) AS tags
 	FROM posts p
@@ -130,19 +180,41 @@ func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 
 	var posts []models.PostResponse
 	for rows.Next() {
-		var p models.PostResponse
-		var tags pq.StringArray
-		var fileURL sql.NullString
-
-		err := rows.Scan(
-			&p.PostID, &p.AuthorID, &p.AuthorName, &p.Title, &p.Description,
-			&p.Visibility, &p.DocumentID, &p.SummaryID, &p.CreatedAt, &p.UpdatedAt,
-			&p.LikeCount, &p.SaveCount, &fileURL, &tags,
+		var (
+			p       models.PostResponse
+			tags    pq.StringArray
+			fileURL sql.NullString
+			docID   sql.NullInt64
+			sumID   sql.NullInt64
 		)
-		if err != nil {
+
+		if err := rows.Scan(
+			&p.PostID,
+			&p.AuthorID,
+			&p.AuthorName,
+			&p.Title,
+			&p.Description,
+			&p.Visibility,
+			&docID,
+			&sumID,
+			&p.CreatedAt,
+			&p.UpdatedAt,
+			&p.LikeCount,
+			&p.SaveCount,
+			&fileURL,
+			&tags,
+		); err != nil {
 			return nil, err
 		}
 
+		if docID.Valid {
+			v := int(docID.Int64)
+			p.DocumentID = &v
+		}
+		if sumID.Valid {
+			v := int(sumID.Int64)
+			p.SummaryID = &v
+		}
 		if fileURL.Valid {
 			p.FileURL = &fileURL.String
 		}
@@ -151,27 +223,20 @@ func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 		posts = append(posts, p)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return posts, nil
 }
 
-// each post
 func (r *postRepository) GetPostByID(postID int) (*models.PostResponse, error) {
-	query := `
-	SELECT 
-		p.post_id,
-		p.post_author_user_id,
-		u.username AS author_name,
-		p.post_title,
-		p.post_description,
-		p.post_visibility,
-		p.post_document_id,
-		p.post_summary_id,
-		p.post_created_at,
-		p.post_updated_at,
+	query := `SELECT p.post_id, p.post_author_user_id, u.username AS author_name,
+		p.post_title, p.post_description, p.post_visibility, p.post_document_id,
+		p.post_summary_id, p.post_created_at, p.post_updated_at,
 		COALESCE(ps.post_like_count, 0)  AS post_like_count,
-			COALESCE(ps.post_save_count, 0)  AS post_save_count,
-			d.document_url AS document_file_url,
-			ARRAY_REMOVE(ARRAY_AGG(DISTINCT t.tag_name), NULL) AS tags
+		COALESCE(ps.post_save_count, 0)  AS post_save_count,
+		d.document_url AS document_file_url,
+		ARRAY_REMOVE(ARRAY_AGG(DISTINCT t.tag_name), NULL) AS tags
 	FROM posts p
 	JOIN users u ON u.user_id = p.post_author_user_id
 	LEFT JOIN post_stats ps ON ps.post_stats_post_id = p.post_id
@@ -179,55 +244,53 @@ func (r *postRepository) GetPostByID(postID int) (*models.PostResponse, error) {
 	LEFT JOIN tags t ON t.tag_id = pt.post_tag_tag_id
 	LEFT JOIN documents d ON d.document_id = p.post_document_id
 	WHERE p.post_id = $1
-	GROUP BY p.post_id, u.username, ps.post_like_count, ps.post_save_count, d.document_url;
-	`
+	GROUP BY p.post_id, u.username, ps.post_like_count, ps.post_save_count, d.document_url;`
 
 	row := r.db.QueryRow(query, postID)
-	var p models.PostResponse
-	var tags pq.StringArray
-	var fileURL sql.NullString
-
-	err := row.Scan(
-		&p.PostID, &p.AuthorID, &p.AuthorName, &p.Title,
-		&p.Description, &p.Visibility, &p.DocumentID,
-		&p.SummaryID, &p.CreatedAt, &p.UpdatedAt,
-		&p.LikeCount, &p.SaveCount, &fileURL, &tags,
+	var (
+		p       models.PostResponse
+		tags    pq.StringArray
+		fileURL sql.NullString
+		docID   sql.NullInt64
+		sumID   sql.NullInt64
 	)
 
-	if err != nil {
+	if err := row.Scan(
+		&p.PostID,
+		&p.AuthorID,
+		&p.AuthorName,
+		&p.Title,
+		&p.Description,
+		&p.Visibility,
+		&docID,
+		&sumID,
+		&p.CreatedAt,
+		&p.UpdatedAt,
+		&p.LikeCount,
+		&p.SaveCount,
+		&fileURL,
+		&tags,
+	); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, sql.ErrNoRows
 		}
 		return nil, err
 	}
 
+	if docID.Valid {
+		v := int(docID.Int64)
+		p.DocumentID = &v
+	}
+	if sumID.Valid {
+		v := int(sumID.Int64)
+		p.SummaryID = &v
+	}
 	if fileURL.Valid {
 		p.FileURL = &fileURL.String
 	}
 
 	p.Tags = []string(tags)
 	return &p, nil
-}
-
-// อัปเดตโพสต์
-func (r *postRepository) UpdatePost(post *models.Post) error {
-	query := `
-	UPDATE posts
-	SET post_title = $1,
-	    post_description = $2,
-	    post_visibility = $3,
-	    post_updated_at = now()
-	WHERE post_id = $4;
-	`
-	_, err := r.db.Exec(query, post.Title, post.Description, post.Visibility, post.PostID)
-	return err
-}
-
-// ลบโพสต์
-func (r *postRepository) DeletePost(postID int) error {
-	query := `DELETE FROM posts WHERE post_id = $1`
-	_, err := r.db.Exec(query, postID)
-	return err
 }
 
 func (r *postRepository) GetPostOwnerID(postID int) (int, error) {

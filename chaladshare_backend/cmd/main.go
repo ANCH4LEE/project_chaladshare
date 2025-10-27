@@ -24,6 +24,10 @@ import (
 	PostHandler "chaladshare_backend/internal/posts/handlers"
 	PostRepo "chaladshare_backend/internal/posts/repository"
 	PostService "chaladshare_backend/internal/posts/service"
+
+	UserHandler "chaladshare_backend/internal/users/handlers"
+	UserRepo "chaladshare_backend/internal/users/repository"
+	UserService "chaladshare_backend/internal/users/service"
 )
 
 func TimeoutMiddleware(timeout time.Duration) gin.HandlerFunc {
@@ -63,7 +67,12 @@ func main() {
 	//post repo service handler
 	postRepository := PostRepo.NewPostRepository(db.GetDB())
 	postService := PostService.NewPostService(postRepository)
-	postHandler := PostHandler.NewPostHandler(postService, fileService)
+	postHandler := PostHandler.NewPostHandler(postService)
+
+	// user repo service handler
+	userRepository := UserRepo.NewUserRepository(db.GetDB())
+	userService := UserService.NewUserService(userRepository)
+	userHandler := UserHandler.NewUserHandler(userService)
 
 	go func() {
 		for {
@@ -95,7 +104,6 @@ func main() {
 	r.MaxMultipartMemory = 100 << 20
 	r.Static("/uploads", "./uploads")
 
-	// สร้างโฟลเดอร์ uploads ถ้ายังไม่มี
 	if err := os.MkdirAll("uploads", 0755); err != nil {
 		log.Fatalf("cannot create uploads dir: %v", err)
 	}
@@ -131,7 +139,6 @@ func main() {
 		{
 			posts.GET("", postHandler.GetAllPosts)
 			posts.GET("/:id", postHandler.GetPostByID)
-			posts.GET("/pages/:post_id", postHandler.GetPostPages)
 
 			posts.POST("", postHandler.CreatePost)
 			posts.PUT("/:id", postHandler.UpdatePost)
@@ -143,10 +150,18 @@ func main() {
 		{
 			files.POST("/upload", fileHandler.UploadFile)
 			files.GET("/user/:user_id", fileHandler.GetFilesByUserID)
-			files.GET("/:document_id/pages", fileHandler.GetDocumentPages)
 			files.GET("/:document_id/summary", fileHandler.GetSummaryByDocumentID)
 			files.DELETE("/:document_id", fileHandler.DeleteFile)
 		}
+
+		//Profile
+		profile := protected.Group("/profile")
+		{
+			profile.GET("", userHandler.GetOwnProfile)
+			profile.PUT("", userHandler.UpdateOwnProfile)
+			profile.GET("/:id", userHandler.GetViewedUserProfile)
+		}
+
 	}
 
 	//Run Server

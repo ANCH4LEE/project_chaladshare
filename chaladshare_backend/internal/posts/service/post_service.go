@@ -10,10 +10,12 @@ import (
 
 type PostService interface {
 	CreatePost(post *models.Post, tags []string) (int, error)
+	UpdatePost(post *models.Post, tags []string) error
+	DeletePost(postID int) error
+
 	GetAllPosts() ([]models.PostResponse, error)
 	GetPostByID(postID int) (*models.PostResponse, error)
-	UpdatePost(post *models.Post) error
-	DeletePost(postID int) error
+
 	IsOwner(postID int, userID int) (bool, error)
 	ViewPost(viewerID, postID int) (bool, string, error)
 	Friends(viewerID, authorID int) (bool, error)
@@ -35,53 +37,38 @@ func (s *postService) CreatePost(post *models.Post, tags []string) (int, error) 
 	if strings.TrimSpace(post.Title) == "" {
 		return 0, fmt.Errorf("post_title is required")
 	}
-	if post.Visibility != "public" {
+	if post.Visibility != models.VisibilityPublic {
 		return 0, fmt.Errorf("unsupported visibility")
 	}
 
 	normTags := normalizeTags(tags)
-
-	postID, err := s.postRepo.CreatePost(post)
+	postID, err := s.postRepo.CreatePost(post, normTags)
 	if err != nil {
 		return 0, fmt.Errorf("failed to create post: %w", err)
 	}
-
-	if err := s.postRepo.AddTags(postID, normTags); err != nil {
-		return 0, fmt.Errorf("failed to add tags: %w", err)
-	}
-
-	if err := s.postRepo.InitPostStats(postID); err != nil {
-		return 0, fmt.Errorf("failed to init stats: %w", err)
-	}
-
 	return postID, nil
 }
 
-// ดึง all post
-func (s *postService) GetAllPosts() ([]models.PostResponse, error) {
-	return s.postRepo.GetAllPosts()
-}
-
-// each post by ID
-func (s *postService) GetPostByID(postID int) (*models.PostResponse, error) {
-	return s.postRepo.GetPostByID(postID)
-}
-
-// update for edit post
-func (s *postService) UpdatePost(post *models.Post) error {
+func (s *postService) UpdatePost(post *models.Post, tags []string) error {
 	if post.PostID <= 0 {
 		return fmt.Errorf("invalid post_id")
 	}
 	if strings.TrimSpace(post.Title) == "" {
 		return fmt.Errorf("post_title is required")
 	}
-	if post.Visibility != "public" {
+	if post.Visibility != models.VisibilityPublic {
 		return fmt.Errorf("unsupported visibility")
 	}
-	return s.postRepo.UpdatePost(post)
+	var normTags []string
+	if tags != nil {
+		normTags = normalizeTags(tags)
+	}
+	if err := s.postRepo.UpdatePost(post, normTags); err != nil {
+		return fmt.Errorf("failed to update post: %w", err)
+	}
+	return nil
 }
 
-// delete post
 func (s *postService) DeletePost(postID int) error {
 	return s.postRepo.DeletePost(postID)
 }
@@ -102,7 +89,6 @@ func normalizeTags(in []string) []string {
 		if tag == "" || len(tag) > maxLen {
 			continue
 		}
-		// (ถ้าจะบังคับ charset) ปล่อยผ่านเฉพาะ [a-z0-9_-]
 		valid := true
 		for _, r := range tag {
 			if !(r >= 'a' && r <= 'z') && !(r >= '0' && r <= '9') && r != '_' && r != '-' {
@@ -126,6 +112,15 @@ func normalizeTags(in []string) []string {
 	return out
 }
 
+func (s *postService) GetAllPosts() ([]models.PostResponse, error) {
+	return s.postRepo.GetAllPosts()
+}
+
+// each post by ID
+func (s *postService) GetPostByID(postID int) (*models.PostResponse, error) {
+	return s.postRepo.GetPostByID(postID)
+}
+
 func (s *postService) IsOwner(postID int, userID int) (bool, error) {
 	ownerID, err := s.postRepo.GetPostOwnerID(postID)
 	if err != nil {
@@ -145,18 +140,17 @@ func (s *postService) ViewPost(viewerID, postID int) (bool, string, error) {
 
 	authorID := post.AuthorID
 	vis := strings.ToLower(strings.TrimSpace(post.Visibility))
-
 	if vis == "" {
-		vis = "public"
+		vis = models.VisibilityPublic
 	}
 	if viewerID == authorID {
 		return true, "owner", nil
 	}
 
 	switch vis {
-	case "public":
+	case models.VisibilityPublic:
 		return true, "public", nil
-	case "friends":
+	case models.VisibilityFriends:
 		ok, err := s.Friends(viewerID, authorID)
 		if err != nil {
 			return false, "error", err

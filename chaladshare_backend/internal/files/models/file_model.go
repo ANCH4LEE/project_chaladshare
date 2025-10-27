@@ -10,15 +10,6 @@ type Document struct {
 	DocumentURL     string    `json:"document_url"`
 	StorageProvider string    `json:"storage_provider"`
 	UploadedAt      time.Time `json:"uploaded_at"`
-	PageCount       int       `json:"page_count"`
-}
-
-type DocumentPage struct {
-	DocPageID  int       `json:"doc_page_id"`
-	DocumentID int       `json:"document_id"`
-	PageIndex  int       `json:"page_index"`
-	ImageURL   string    `json:"image_url"`
-	CreatedAt  time.Time `json:"created_at"`
 }
 
 // เก็บข้อมูลจากไฟล์ที่สรุปเนื้อหาด้วย AI
@@ -32,11 +23,10 @@ type Summary struct {
 }
 
 type UploadRequest struct {
-	UserID          int      `json:"-"`
-	DocumentName    string   `json:"document_name"`
-	DocumentURL     string   `json:"document_url"`
-	StorageProvider string   `json:"storage_provider"`
-	Images          []string `json:"images"` // path ของภาพแต่ละหน้า
+	UserID          int    `json:"-"`
+	DocumentName    string `json:"document_name"`
+	DocumentURL     string `json:"document_url"`
+	StorageProvider string `json:"storage_provider"`
 }
 
 // response ตอนอัปโหลดสำเร็จ

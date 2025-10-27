@@ -27,7 +27,7 @@ func NewAuthRepository(db *sql.DB) AuthRepository {
 // GET ผู้ใช้ทั้งหมด เรียง id
 func (r *authRepository) GetAllUsers() ([]models.User, error) {
 	rows, err := r.db.Query(`
-		SELECT user_id, email, username, user_created_at, user_updated_at, user_status
+		SELECT user_id, email, username, user_created_at, user_status
 		FROM users
 		ORDER BY user_id
 	`)
@@ -41,7 +41,7 @@ func (r *authRepository) GetAllUsers() ([]models.User, error) {
 		var u models.User
 		if err := rows.Scan(
 			&u.ID, &u.Email, &u.Username,
-			&u.CreatedAt, &u.UpdatedAt, &u.Status,
+			&u.CreatedAt, &u.Status,
 		); err != nil {
 			return nil, fmt.Errorf("อ่านข้อมูลผู้ใช้ไม่สำเร็จ: %w", err)
 		}
@@ -58,12 +58,11 @@ func (r *authRepository) GetAllUsers() ([]models.User, error) {
 func (r *authRepository) GetUserByID(id int) (*models.User, error) {
 	var u models.User
 	err := r.db.QueryRow(`
-		SELECT user_id, email, username, user_created_at, user_updated_at, user_status
+		SELECT user_id, email, username, user_created_at, user_status
 		FROM users
 		WHERE user_id = $1
 	`, id).Scan(
-		&u.ID, &u.Email, &u.Username, &u.CreatedAt,
-		&u.UpdatedAt, &u.Status,
+		&u.ID, &u.Email, &u.Username, &u.CreatedAt, &u.Status,
 	)
 
 	if err == sql.ErrNoRows {
@@ -80,7 +79,7 @@ func (r *authRepository) GetUserByEmail(email string) (*models.User, error) {
 	err := r.db.QueryRow(`
 		SELECT user_id, email, username, password_hash, user_created_at, user_status
 		FROM users
-		WHERE email = $1
+		WHERE LOWER(email) = LOWER($1)
 	`, email).Scan(
 		&u.ID, &u.Email, &u.Username, &u.PasswordHash,
 		&u.CreatedAt, &u.Status,

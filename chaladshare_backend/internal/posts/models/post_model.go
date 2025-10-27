@@ -1,6 +1,13 @@
 package models
 
-import "time"
+import (
+	"time"
+)
+
+const (
+	VisibilityPublic  = "public"
+	VisibilityFriends = "friends"
+)
 
 // post
 type Post struct {
@@ -15,11 +22,15 @@ type Post struct {
 	UpdatedAt    time.Time `json:"post_updated_at"`
 }
 
-// tag
+// each tag
 type Tag struct {
-	PostID  int    `json:"post_id"`
 	TagID   int    `json:"tag_id"`
 	TagName string `json:"tag_name"`
+}
+
+type PostTag struct {
+	PostID int `json:"post_id"`
+	TagID  int `json:"tag_id"`
 }
 
 // liked
@@ -46,28 +57,36 @@ type PostStats struct {
 
 // for response
 type PostResponse struct {
-	PostID      int        `json:"post_id"`
-	AuthorID    int        `json:"author_id"`
-	AuthorName  string     `json:"author_name"`
-	Title       string     `json:"post_title"`
-	Description string     `json:"post_description"`
-	Visibility  string     `json:"post_visibility"`
-	DocumentID  *int       `json:"post_document_id"`
-	SummaryID   *int       `json:"post_summary_id"`
-	CreatedAt   time.Time  `json:"post_created_at"`
-	UpdatedAt   time.Time  `json:"post_updated_at"`
-	FileURL     *string    `json:"file_url"`
-	Tags        []string   `json:"tags"`
-	LikeCount   int        `json:"like_count"`
-	SaveCount   int        `json:"save_count"`
-	IsLiked     bool       `json:"is_liked"`
-	IsSaved     bool       `json:"is_saved"`
-	Stats       *PostStats `json:"stats"`
+	PostID      int       `json:"post_id"`
+	AuthorID    int       `json:"author_id"`
+	AuthorName  string    `json:"author_name"`
+	Title       string    `json:"post_title"`
+	Description string    `json:"post_description"`
+	Visibility  string    `json:"post_visibility"`
+	DocumentID  *int      `json:"post_document_id"`
+	SummaryID   *int      `json:"post_summary_id"`
+	CreatedAt   time.Time `json:"post_created_at"`
+	UpdatedAt   time.Time `json:"post_updated_at"`
+
+	FileURL   *string  `json:"file_url"`
+	Tags      []string `json:"tags"`
+	LikeCount int      `json:"like_count"`
+	SaveCount int      `json:"save_count"`
+
+	IsLiked bool `json:"is_liked"`
+	IsSaved bool `json:"is_saved"`
+}
+
+type UpdatePostRequest struct {
+	Title       string   `json:"post_title,omitempty"`
+	Description string   `json:"post_description,omitempty"`
+	Visibility  string   `json:"post_visibility,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
 }
 
 type PostQueryParam struct {
-	Search string `form:"search"`
-	Tag    string `form:"tag"`
-	Sort   string `form:"sort"`
-	Limit  int    `form:"limit"`
+	Search string   `form:"search"`
+	Tag    []string `form:"tag"`
+	Sort   string   `form:"sort"`
+	Limit  int      `form:"limit"`
 }

@@ -4,43 +4,41 @@ import (
 	"net/http"
 	"strconv"
 
-	filesvc "chaladshare_backend/internal/files/service"
 	"chaladshare_backend/internal/posts/models"
-	postsvc "chaladshare_backend/internal/posts/service"
+	"chaladshare_backend/internal/posts/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 type PostHandler struct {
-	postService postsvc.PostService
-	fileService filesvc.FileService
+	postService service.PostService
 }
 
-func NewPostHandler(postService postsvc.PostService, fileService filesvc.FileService) *PostHandler {
-	return &PostHandler{postService: postService, fileService: fileService}
+func NewPostHandler(postService service.PostService) *PostHandler {
+	return &PostHandler{postService: postService}
 }
 
 // สร้างโพสต์ใหม่ (ต้องล็อกอิน)
 func (h *PostHandler) CreatePost(c *gin.Context) {
-	uid := c.GetInt("user_id") // เอาจาก JWT เท่านั้น
+	uid := c.GetInt("user_id")
 	if uid == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
 	var req struct {
-		Title       string   `json:"post_title" binding:"required"`
-		Description string   `json:"post_description"`
-		Visibility  string   `json:"post_visibility" binding:"required"` // ตอนนี้รองรับ "public" เท่านั้น
-		DocumentID  *int     `json:"post_document_id"`
-		SummaryID   *int     `json:"post_summary_id"`
-		Tags        []string `json:"tags"`
+		Title       string `json:"post_title" binding:"required"`
+		Description string `json:"post_description"`
+		Visibility  string `json:"post_visibility" binding:"required"` // ตอนนี้รองรับ "public" เท่านั้น
+		DocumentID  *int   `json:"document_id"`
+		// SummaryID   *int     `json:"post_summary_id"`
+		Tags []string `json:"tags"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
-	if req.Visibility != "public" {
+	if req.Visibility != models.VisibilityPublic {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported visibility"})
 		return
 	}
@@ -51,7 +49,7 @@ func (h *PostHandler) CreatePost(c *gin.Context) {
 		Description:  req.Description,
 		Visibility:   req.Visibility,
 		DocumentID:   req.DocumentID,
-		SummaryID:    req.SummaryID,
+		SummaryID:    nil,
 	}
 
 	postID, err := h.postService.CreatePost(post, req.Tags)
@@ -59,7 +57,7 @@ func (h *PostHandler) CreatePost(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.Header("Location", "/posts/"+strconv.Itoa(postID))
+	c.Header("Location", "/api/v1/posts/"+strconv.Itoa(postID))
 	c.JSON(http.StatusCreated, gin.H{"data": gin.H{"post_id": postID}})
 }
 
@@ -116,15 +114,16 @@ func (h *PostHandler) UpdatePost(c *gin.Context) {
 	}
 
 	var req struct {
-		Title       string `json:"post_title"`
-		Description string `json:"post_description"`
-		Visibility  string `json:"post_visibility"`
+		Title       string   `json:"post_title"`
+		Description string   `json:"post_description"`
+		Visibility  string   `json:"post_visibility"`
+		Tags        []string `json:"tags"` // ← เพิ่มบรรทัดนี้
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
-	if req.Visibility != "public" {
+	if req.Visibility != models.VisibilityPublic {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported visibility"})
 		return
 	}
@@ -135,7 +134,7 @@ func (h *PostHandler) UpdatePost(c *gin.Context) {
 		Description: req.Description,
 		Visibility:  req.Visibility,
 	}
-	if err := h.postService.UpdatePost(post); err != nil {
+	if err := h.postService.UpdatePost(post, req.Tags); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -170,49 +169,4 @@ func (h *PostHandler) DeletePost(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
-}
-
-func (h *PostHandler) GetPostPages(c *gin.Context) {
-	viewerID := c.GetInt("user_id")
-	postIDStr := c.Param("post_id")
-	postID, err := strconv.Atoi(postIDStr)
-	if err != nil || postID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid post_id"})
-		return
-	}
-
-	ok, reason, err := h.postService.ViewPost(viewerID, postID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal_error"})
-		return
-	}
-
-	if !ok {
-		switch reason {
-		case "not_found":
-			c.JSON(http.StatusNotFound, gin.H{"error": "post not found"})
-		case "friends_only":
-			c.JSON(http.StatusForbidden, gin.H{"error": "post is friends only"})
-		default:
-			c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
-		}
-		return
-	}
-
-	post, err := h.postService.GetPostByID(postID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "get post failed"})
-		return
-	}
-	if post == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "no ducumnet"})
-		return
-	}
-
-	pages, err := h.fileService.GetDocumentPages(*post.DocumentID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "load pages failed"})
-		return
-	}
-	c.JSON(http.StatusOK, pages)
 }

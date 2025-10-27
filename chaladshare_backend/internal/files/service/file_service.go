@@ -15,7 +15,6 @@ type FileService interface {
 	DeleteFile(documentID int) error
 
 	GetDocumentOwnerID(documentID int) (int, error)
-	GetDocumentPages(docID int) ([]models.DocumentPage, error)
 
 	SaveSummary(summary *models.Summary) (*models.Summary, error)
 	GetSummaryByDocumentID(docID int) (*models.Summary, error)
@@ -38,8 +37,8 @@ func (s *fileService) UploadFile(req *models.UploadRequest) (*models.UploadRespo
 	if strings.TrimSpace(req.DocumentURL) == "" {
 		return nil, errors.New("ต้องระบุ URL ของไฟล์")
 	}
-	if len(req.Images) == 0 {
-		return nil, errors.New("ต้องมีภาพของไฟล์อย่างน้อย 1 หน้า")
+	if strings.TrimSpace(req.StorageProvider) == "" {
+		req.StorageProvider = "local"
 	}
 
 	doc := &models.Document{
@@ -49,7 +48,7 @@ func (s *fileService) UploadFile(req *models.UploadRequest) (*models.UploadRespo
 		StorageProvider: req.StorageProvider,
 	}
 
-	savedDoc, err := s.filerepo.CreateDocument(doc, req.Images)
+	savedDoc, err := s.filerepo.CreateDocument(doc)
 	if err != nil {
 		return nil, fmt.Errorf("บันทึกไฟล์ไม่สำเร็จ: %v", err)
 	}
@@ -64,7 +63,7 @@ func (s *fileService) UploadFile(req *models.UploadRequest) (*models.UploadRespo
 }
 
 func (s *fileService) GetFilesByUserID(userID int) ([]models.Document, error) {
-	files, err := s.filerepo.GetDocumentByUserID(userID)
+	files, err := s.filerepo.GetListDocByUserID(userID)
 	if err != nil {
 		return nil, fmt.Errorf("ไม่สามารถดึงข้อมูลไฟล์ได้: %v", err)
 	}
@@ -80,18 +79,6 @@ func (s *fileService) DeleteFile(documentID int) error {
 		return fmt.Errorf("ไม่สามารถลบไฟล์ได้: %v", err)
 	}
 	return nil
-}
-
-func (s *fileService) GetDocumentPages(docID int) ([]models.DocumentPage, error) {
-	if docID <= 0 {
-		return nil, errors.New("document_id ไม่ถูกต้อง")
-	}
-
-	pages, err := s.filerepo.GetDocumentPages(docID)
-	if err != nil {
-		return nil, fmt.Errorf("ไม่สามารถดึงภาพของไฟล์ได้: %v", err)
-	}
-	return pages, nil
 }
 
 func (s *fileService) SaveSummary(summary *models.Summary) (*models.Summary, error) {
