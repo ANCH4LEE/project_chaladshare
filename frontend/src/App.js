@@ -7,6 +7,8 @@ import Home from './pages/Home';
 import PostDetail from './pages/PostDetail';
 import CreatePost from './pages/Createpost';
 import Friends from './pages/Friends';
+import Profile from './pages/Profile';
+import ForgotPassword from './pages/ForgotPassword';
 
 
 function App() {
@@ -19,6 +21,9 @@ function App() {
         <Route path="/posts/:id" element={<PostDetail />} />
         <Route path="/newpost" element={<CreatePost />} />
         <Route path="/friends" element={<Friends />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/profile/:id" element={<Profile />} />
+        <Route path="/forgot_password" element={<ForgotPassword />} />
   
       </Routes>
     </Router>

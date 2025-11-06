@@ -50,6 +50,7 @@ const PostDetail = () => {
           visibility: data.post_visibility,
           file_url: data.file_url ? toAbsUrl(data.file_url) : null,
           author_name: data.author_name,
+          author_id:  data.author_id,
           like_count: data.like_count,
           is_liked: data.is_liked,
           is_saved: data.is_saved,
@@ -135,7 +136,16 @@ const PostDetail = () => {
         </div>
 
         {/* profile */}
-        <div className="user-info">
+        <div
+          className="user-info"
+          style={{ cursor: post.author_id ? "pointer" : "default" }}
+          onClick={() => {
+            if (!post.author_id) return;
+            // เด้งไปหน้าโปรไฟล์ของผู้เขียน
+            navigate(`/profile/${post.author_id}`);
+          }}
+          title={post.author_id ? "ไปที่โปรไฟล์ผู้เขียน" : undefined}
+        >
           <img
             src={post.author_profile || "/img/default-profile.png"}
             alt="profile"

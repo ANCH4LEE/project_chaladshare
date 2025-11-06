@@ -28,7 +28,7 @@ const Sidebar = () => {
           <HiOutlineSparkles /> AI ช่วยสรุป</li>
         <li onClick={() => navigate("/friends")} style={{ cursor: "pointer" }}>
           <RiUserAddLine /> เพื่อน</li>
-        <li onClick={() => navigate("/home")} style={{ cursor: "pointer" }}>
+        <li onClick={() => navigate("/profile")} style={{ cursor: "pointer" }}>
           <RiUser6Line /> โปรไฟล์</li>
         <li onClick={() => navigate("/")} style={{ cursor: "pointer" }}>
           <RiLogoutCircleRLine /> ออกจากระบบ
