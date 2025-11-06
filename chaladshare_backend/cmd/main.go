@@ -72,7 +72,7 @@ func main() {
 	// user repo service handler
 	userRepository := UserRepo.NewUserRepository(db.GetDB())
 	userService := UserService.NewUserService(userRepository)
-	userHandler := UserHandler.NewUserHandler(userService)
+	userHandler := UserHandler.NewUserHandler(userService, postService)
 
 	go func() {
 		for {

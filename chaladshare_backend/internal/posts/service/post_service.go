@@ -15,6 +15,7 @@ type PostService interface {
 
 	GetAllPosts() ([]models.PostResponse, error)
 	GetPostByID(postID int) (*models.PostResponse, error)
+	CountByUserID(userID int) (int, error)
 
 	IsOwner(postID int, userID int) (bool, error)
 	ViewPost(viewerID, postID int) (bool, string, error)
@@ -119,6 +120,10 @@ func (s *postService) GetAllPosts() ([]models.PostResponse, error) {
 // each post by ID
 func (s *postService) GetPostByID(postID int) (*models.PostResponse, error) {
 	return s.postRepo.GetPostByID(postID)
+}
+
+func (s *postService) CountByUserID(userID int) (int, error) {
+	return s.postRepo.CountByUserID(userID)
 }
 
 func (s *postService) IsOwner(postID int, userID int) (bool, error) {

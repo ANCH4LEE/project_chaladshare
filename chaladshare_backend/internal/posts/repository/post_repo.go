@@ -17,6 +17,7 @@ type PostRepository interface {
 	GetAllPosts() ([]models.PostResponse, error)
 	GetPostByID(postID int) (*models.PostResponse, error)
 	GetPostOwnerID(postID int) (int, error)
+	CountByUserID(userID int) (int, error)
 }
 
 type postRepository struct {
@@ -300,4 +301,10 @@ func (r *postRepository) GetPostOwnerID(postID int) (int, error) {
 		return 0, err
 	}
 	return owner, nil
+}
+
+func (r *postRepository) CountByUserID(userID int) (int, error) {
+	var cnt int
+	err := r.db.QueryRow(`SELECT COUNT(*) FROM posts WHERE post_author_user_id = $1`, userID).Scan(&cnt)
+	return cnt, err
 }
