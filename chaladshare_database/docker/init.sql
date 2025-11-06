@@ -1,7 +1,7 @@
 -- ตาราง users สำหรับ login/register 172.20.10.2
 create table if not exists users (
     user_id         serial primary key,                     -- id auto increment
-    email           varchar(50) unique not null,            -- email ไม่ซ้ำ ห้ามว่าง
+    email           varchar(256) unique not null,            -- email ไม่ซ้ำ ห้ามว่าง
     username        varchar(50) unique not null,            -- username ไม่ซ้ำ ห้ามว่าง
     username_ci     varchar(50) generated always as 
                      (lower(username)) stored,              -- ทำ index คำเล็ก (case-insensitive)
@@ -79,9 +79,9 @@ create table if not exists user_interests (
 -- ตารางเก็บการติดตาม (Follow)
 create table if not exists follows (
     follower_user_id   integer references users(user_id) on delete cascade, -- คนที่กดติดตาม
-    followee_user_id   integer references users(user_id) on delete cascade, -- คนที่ถูกติดตาม
+    followed_user_id   integer references users(user_id) on delete cascade, -- คนที่ถูกติดตาม
     follow_created_at  timestamptz default now(),                           -- เวลา follow
-    primary key (follower_user_id, followee_user_id)                        -- กันซ้ำ
+    primary key (follower_user_id, followed_user_id)                        -- กันซ้ำ
 );
 
 -- enum สถานะคำขอเป็นเพื่อน (ใช้ DO-block กันกรณี IF NOT EXISTS ใช้ไม่ได้)
@@ -145,8 +145,8 @@ create table if not exists summaries (
 create table if not exists posts (
     post_id             serial primary key,
     post_author_user_id integer references users(user_id) on delete cascade, -- ผู้โพสต์
-    post_title          varchar(150) not null,                                -- หัวข้อโพสต์
-    post_description    varchar(500),                                         -- คำอธิบาย
+    post_title          varchar(120) not null,                                -- หัวข้อโพสต์
+    post_description    text,                                         -- คำอธิบาย
     post_visibility     varchar(10) check (post_visibility in ('public','friends')), -- การมองเห็น
     post_document_id    integer references documents(document_id),            -- อ้างไฟล์
     post_summary_id     integer references summaries(summary_id),             -- อ้างสรุป
