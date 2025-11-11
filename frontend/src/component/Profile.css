@@ -18,7 +18,7 @@
   flex: 1;
   margin-left: var(--sidebar-width);
   padding: 32px 28px;
-  background: var(--bg); /* ✅ เอาพื้นหลังขาวออก ให้เทาอ่อน */
+  background: var(--bg);
 }
 
 .profile-page .profile-shell {
@@ -32,13 +32,12 @@
   align-items: center;
   gap: 24px;
   background: var(--card);
-  border-radius: 0;      /* หรือจะเอาออกเลยก็ได้ */
-  box-shadow: none;      /* ✅ เอาเงาออก ไม่ให้ดูเป็นกรอบ */
+  border-radius: 0;
+  box-shadow: none;
   padding: 28px 36px;
   margin-bottom: 28px;
-  border: none;          /* ✅ เผื่อมี border เพิ่มจาก library อื่น */
+  border: none;
 }
-
 
 .profile-page .profile-avatar {
   width: 100px;
@@ -48,9 +47,7 @@
   object-fit: cover;
 }
 
-.profile-page .profile-info {
-  flex: 1;
-}
+.profile-page .profile-info { flex: 1; }
 
 .profile-page .profile-toprow {
   display: flex;
@@ -76,10 +73,7 @@
   cursor: pointer;
   transition: all 0.15s ease;
 }
-
-.profile-page .profile-btn-edit:hover {
-  background: #e7f2ff; 
-}
+.profile-page .profile-btn-edit:hover { background: #e7f2ff; }
 
 .profile-page .profile-bio {
   color: var(--muted);
@@ -97,39 +91,20 @@
 /* ===== Tabs ===== */
 .profile-page .profile-tabs {
   display: flex;
-  justify-content: center; /* ✅ อยู่ตรงกลาง */
-  margin-bottom: 22px;
-}
-
-.profile-page .profile-tabs-track {
-  position: relative;
-  background: transparent; /* ✅ ให้พื้นหลังกลืนกับพื้น */
-  padding: 8px;
-  border-radius: 0;         /* ✅ ตัดมุมมนออก ถ้าอยากเรียบเนียน */
-  box-shadow: none;         /* ✅ เอาเงาออก — ขอบจะหายทันที */
-  display: inline-flex;
-  gap: 8px;
-  border: none;             /* ✅ กันพลาดเผื่อมี border จากที่อื่น */
-}
-/* ===== Tabs ===== */
-.profile-page .profile-tabs {
-  display: flex;
   justify-content: center;
   margin-bottom: 22px;
 }
 
-/* ✅ ปรับโครงสร้าง track ให้ไม่มีพื้นหลัง ไม่มีเงา */
 .profile-page .profile-tabs-track {
   position: relative;
   display: inline-flex;
-  gap: 40px; /* ระยะห่างระหว่างแท็บ */
+  gap: 40px;
   background: transparent;
   padding: 8px 0;
   border-radius: 0;
   box-shadow: none;
 }
 
-/* ✅ สไตล์แท็บแต่ละปุ่ม */
 .profile-page .profile-tab {
   position: relative;
   padding: 10px 0;
@@ -140,20 +115,13 @@
   cursor: pointer;
   transition: color 0.2s ease;
 }
-
-/* hover / active เปลี่ยนสีข้อความ */
 .profile-page .profile-tab:hover,
-.profile-page .profile-tab.active {
-  color: var(--primary);
-}
+.profile-page .profile-tab.active { color: var(--primary); }
 
-/* ✅ เส้น underline ที่พอดีกับตัวอักษร */
 .profile-page .profile-tab::after {
   content: "";
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -2px;  /* ปรับระยะห่างจากตัวอักษร */
+  left: 0; right: 0; bottom: -2px;
   height: 3px;
   background: var(--primary);
   border-radius: 999px;
@@ -161,18 +129,11 @@
   transform-origin: center;
   transition: transform 0.25s ease;
 }
-
-/* ✅ แสดงเส้นเฉพาะแท็บที่ active */
-.profile-page .profile-tab.active::after {
-  transform: scaleX(1);
-}
-
-/* เพิ่ม animation ตอน hover */
+.profile-page .profile-tab.active::after { transform: scaleX(1); }
 .profile-page .profile-tab:hover::after {
   transform: scaleX(0.6);
   opacity: 0.6;
 }
-
 
 /* ===== Body / Card ===== */
 .profile-page .profile-body {
@@ -180,57 +141,34 @@
   background: transparent;
   padding-top: 10px;
 }
-
 .profile-page .profile-msg {
   text-align: center;
   color: var(--text);
   font-size: 15px;
   padding: 50px 0;
 }
-
-.profile-page .profile-msg.error {
-  color: red;
-}
-
-.profile-page .profile-msg.muted {
-  color: var(--muted);
-}
+.profile-page .profile-msg.error { color: red; }
+.profile-page .profile-msg.muted { color: var(--muted); }
 
 .profile-page .card-list {
   display: flex;
   flex-wrap: wrap;
   gap: 24px;
-  justify-content: center; /* ✅ การ์ดอยู่ตรงกลาง */
+  justify-content: center;
 }
 
 /* ===== Responsive ===== */
 @media (max-width: 768px) {
-  .profile-page .profile-content {
-    margin-left: 0;
-    padding: 20px;
-  }
-
+  .profile-page .profile-content { margin-left: 0; padding: 20px; }
   .profile-page .profile-header {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
+    flex-direction: column; align-items: center; text-align: center;
   }
-
-  .profile-page .profile-stats {
-    justify-content: center;
-  }
-
-  .profile-page .profile-tabs {
-    justify-content: center;
-  }
-
-  .profile-page .card-list {
-    justify-content: center;
-  }
+  .profile-page .profile-stats { justify-content: center; }
+  .profile-page .profile-tabs { justify-content: center; }
+  .profile-page .card-list { justify-content: center; }
 }
 
-/* เพิ่มตั้งแต่ตรงนี้จ้า ฝากแก้ด้วย🙏🏻🙏🏻*/
-/* ===== Card (ให้เหมือนหน้า Home แต่ prefix ด้วย .profile-page) ===== */
+/* ===== Card (เหมือนหน้า Home) ===== */
 .profile-page .card {
   width: 350px;
   border: 1px solid #ddd;
@@ -240,36 +178,20 @@
   box-shadow: 0px 2px 5px rgba(0,0,0,0.05);
   transition: transform 0.2s ease;
 }
+.profile-page .card:hover { transform: translateY(-5px); }
 
-.profile-page .card:hover {
-  transform: translateY(-5px);
-}
-
-/* รูปปกของโพสต์ */
 .profile-page .card .card-image {
   width: 100%;
-  height: 150px;          /* ยึดมาตรฐานเดียวกับ Home */
+  height: 150px;
   object-fit: cover;
   display: block;
 }
 
-/* เนื้อในการ์ด */
-.profile-page .card-body {
-  padding: 10px;
-}
+.profile-page .card-body { padding: 10px; }
+.profile-page .card-body h4 { font-size: 15px; margin: 5px 0; }
+.profile-page .card-body p { font-size: 12px; color: #555; }
 
-.profile-page .card-body h4 {
-  font-size: 15px;
-  margin: 5px 0;
-}
-
-.profile-page .card-body p {
-  font-size: 12px;
-  color: #555;
-}
-
-/* Header / Footer บนการ์ด */
-.profile-page .card-header, 
+.profile-page .card-header,
 .profile-page .card-footer {
   display: flex;
   flex-direction: row;
@@ -280,92 +202,202 @@
   width: 100%;
 }
 
-/* รูปโปรไฟล์ในหัว/ท้ายการ์ด */
 .profile-page .card-header .author-img,
 .profile-page .card-footer .author-img {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-  margin: 0;
-  padding: 0;
-  flex-shrink: 0;
+  width: 40px; height: 40px; border-radius: 50%;
+  object-fit: cover; margin: 0; padding: 0; flex-shrink: 0;
 }
 
 .profile-page .card-header span,
 .profile-page .card-footer span {
-  margin-left: 5px;
-  padding: 0;
-  text-align: left;
+  margin-left: 5px; padding: 0; text-align: left;
 }
 
-/* ไลก์ */
+/* Likes & Actions */
 .profile-page .likes {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 16px;
-  margin-top: 20px;
+  display: flex; align-items: center; gap: 6px;
+  font-size: 16px; margin-top: 20px;
 }
+.profile-page .likes span { color: #000; }
 
-.profile-page .likes span {
-  color: #000;
-}
-
-/* ปุ่มไอคอน (บันทึก/แชร์) */
 .profile-page .actions-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between;
   margin-top: 10px;
 }
-
-.profile-page .action-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+.profile-page .action-right { display: flex; align-items: center; gap: 8px; }
 
 .profile-page .icon-btn {
-  width: 29px;
-  height: 29px;
-  margin-top: 20px;
+  width: 29px; height: 29px; margin-top: 20px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; background: transparent; border-radius: 10px;
+  cursor: pointer; transition: transform .1s ease, color .2s ease;
+}
+.profile-page .icon-btn svg { font-size: 20px; color: #000; }
+.profile-page .icon-btn:hover svg { color: #000; transform: scale(1.1); }
+.profile-page .icon-btn.active svg { color: #ffd500; }
+
+.profile-page .card-list {
+  display: flex; flex-wrap: wrap; gap: 20px; justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .profile-page .card { width: 100%; max-width: 350px; }
+}
+
+/* ===== Edit Profile Card (แบบ Figma) ===== */
+.profile-page .edit-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+  padding: 28px;
+  margin: -6px 0 26px;
+}
+
+.profile-page .edit-grid {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 28px;
+}
+
+.profile-page .edit-avatar-col {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.profile-page .edit-avatar {
+  width: 130px; height: 130px; border-radius: 50%;
+  object-fit: cover; border: 3px solid #e4e9f2;
+}
+.profile-page .edit-upload-btn {
+  display: inline-block; padding: 8px 14px;
+  background: #f6f9ff; color: #0f172a;
+  border: 1px solid #d0e3fa; border-radius: 12px;
+  font-weight: 500; cursor: pointer; transition: all .15s ease;
+}
+.profile-page .edit-upload-btn:hover { background: #e7f2ff; }
+
+.profile-page .edit-form-col { display: flex; flex-direction: column; gap: 14px; }
+.profile-page .edit-subtitle { margin: 6px 0 0; font-size: 16px; color: #0f172a; }
+
+.profile-page .edit-2col {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+}
+.profile-page .edit-field { display: flex; flex-direction: column; gap: 6px; }
+.profile-page .edit-field label { font-size: 14px; color: #334155; }
+
+.profile-page .edit-field input,
+.profile-page .edit-field textarea {
+  border: 1px solid #dbe3ee; background: #fff;
+  border-radius: 10px; padding: 10px 12px; font-size: 14px; outline: none;
+}
+.profile-page .edit-field input:focus,
+.profile-page .edit-field textarea:focus {
+  border-color: #9cc8ff;
+  box-shadow: 0 0 0 3px rgba(0, 153, 255, .1);
+}
+
+.profile-page .edit-actions {
+  display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px;
+}
+.profile-page .btn-cancel {
+  background: #eef2f6; color: #0f172a; border: 1px solid #cfd8e3;
+  padding: 10px 16px; border-radius: 10px; cursor: pointer;
+}
+.profile-page .btn-cancel:hover { background: #e6ebf2; }
+.profile-page .btn-save {
+  background: #027cbb; color: #fff; border: none;
+  padding: 10px 18px; border-radius: 10px; cursor: pointer;
+  box-shadow: 0 4px 10px rgba(2, 124, 187, .25);
+}
+.profile-page .btn-save:hover { filter: brightness(1.05); }
+.profile-page .edit-error { color: #b00020; font-size: 14px; }
+
+/* ---- NEW: แถว “รหัสผ่านปัจจุบัน” + ลิงก์ลืมรหัสผ่าน (ชิดขวา) ---- */
+.profile-page .edit-row{
+  display: flex;
+  align-items: flex-end;           /* ให้ฐานเสมอกับ input */
+  gap: 14px;
+}
+.profile-page .edit-field.flex-1{  /* ช่องรหัสผ่านปัจจุบันกินพื้นที่ซ้ายทั้งหมด */
+  flex: 1;
+}
+.profile-page .forgot-link{
+  margin-left: auto;               /* ดันไปชิดขวาสุด */
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 0;
+  line-height: 1;
+  text-decoration: none;
+}
+.profile-page .forgot-link:hover{
+  text-decoration: underline;
+  filter: brightness(1.05);
+}
+.profile-page .forgot-link:focus{
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(2,124,187,.18);
+  border-radius: 6px;
+}
+/* ==== NEW: Password visibility controls (eye toggle) ==== */
+.profile-page .pw-field{
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.profile-page .pw-input{
+  width: 100%;
+  padding-right: 40px;          /* เผื่อที่ให้ปุ่มตา */
+  height: 40px;                 /* ให้สูงพอดีกับฟอร์ม */
+  box-sizing: border-box;
+}
+
+.profile-page .pw-toggle{
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: none;
-  background: transparent;
-  border-radius: 10px;
+  color: #64748b;               /* เทาอ่อน */
   cursor: pointer;
-  transition: transform .1s ease, color .2s ease;
+  border-radius: 6px;
 }
 
-.profile-page .icon-btn svg {
-  font-size: 20px;
-  color: #000;
+.profile-page .pw-toggle svg{
+  font-size: 18px;
+  pointer-events: none;         /* คลิกโดนปุ่ม ไม่โดนไอคอน */
 }
 
-.profile-page .icon-btn:hover svg {
-  color: #000;
-  transform: scale(1.1);
+.profile-page .pw-toggle:hover{ color: #0f172a; }
+.profile-page .pw-toggle:focus{
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(2,124,187,.18);
 }
 
-.profile-page .icon-btn.active svg {
-  color: #ffd500;
-}
-
-/* ปรับ list การ์ดให้จัดกลางและมีช่องว่าง */
-.profile-page .card-list {
+/* ทำให้ layout ของแถว “รหัสผ่านปัจจุบัน + ลืมรหัสผ่าน?” ชิดฐานเท่ากัน */
+.profile-page .edit-row{
   display: flex;
-  flex-wrap: wrap;
-  gap: 20px;               /* ให้เท่ากับ Home */
-  justify-content: center; 
+  align-items: flex-end;
+  gap: 14px;
 }
+.profile-page .edit-field.flex-1{ flex: 1; }
+
+/* ปรับบนจอเล็ก */
+@media (max-width: 860px){
+  .profile-page .pw-input{ height: 38px; }
+}
+
 
 /* Responsive */
-@media (max-width: 768px) {
-  .profile-page .card {
-    width: 100%;
-    max-width: 350px;
-  }
+@media (max-width: 860px) {
+  .profile-page .edit-grid { grid-template-columns: 1fr; }
+  .profile-page .edit-avatar-col { flex-direction: row; justify-content: center; }
+  .profile-page .forgot-link{ padding: 10px 0; }
 }

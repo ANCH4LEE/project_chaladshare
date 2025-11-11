@@ -23,7 +23,6 @@ const toAbsUrl = (p) => {
   return `${API_HOST}${clean.startsWith("/") ? clean : `/${clean}`}`;
 };
 
-
 const Home = () => {
   // ข้อมูลโพสต์ยอดนิยม
   const [popularPosts, setPopularPosts] = useState([
@@ -67,109 +66,118 @@ const Home = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-  let cancelled = false;
+    let cancelled = false;
 
-  (async () => {
-    try {
-      setLoadingRec(true);
-      setRecErr("");
+    (async () => {
+      try {
+        setLoadingRec(true);
+        setRecErr("");
 
-      // ต้องล็อกอินถึงจะได้ 200
-      const res = await axios.get("/posts");
-      const rows = Array.isArray(res?.data?.data)
-        ? res.data.data
-        : Array.isArray(res?.data)
-        ? res.data
-        : [];
+        // ต้องล็อกอินถึงจะได้ 200
+        const res = await axios.get("/posts");
+        const rows = Array.isArray(res?.data?.data)
+          ? res.data.data
+          : Array.isArray(res?.data)
+          ? res.data
+          : [];
 
-      const mapped = rows.map((p) => {
-        const rawUrl = p.file_url || null;
-        const isPdf = /\.pdf$/i.test(rawUrl || "");
-        return {
-          id: p.post_id,
-          img: rawUrl && !isPdf ? toAbsUrl(rawUrl) : "/img/pdf-placeholder.jpg",
-          isPdf,
-          documentId: p.post_document_id,
-          likes: p.like_count ?? 0,
-          title: p.post_title,
-          tags: Array.isArray(p.tags)
-            ? p.tags.map((t) => (t.startsWith("#") ? t : `#${t}`)).join(" ")
-            : "",
-          authorName: p.author_name || "ไม่ระบุ",
-          authorImg: author2,
-        };
-      });
+        const mapped = rows.map((p) => {
+          const rawUrl = p.file_url || null;
+          const isPdf = /\.pdf$/i.test(rawUrl || "");
+          const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(rawUrl || "");
+          return {
+            id: p.post_id,
+            img:
+              rawUrl && !isPdf && isImage
+                ? toAbsUrl(rawUrl) // ถ้าเป็นรูปภาพ ก็ใช้
+                : "/img/pdf-placeholder.jpg", // ถ้าไม่ใช่ (เช่น /@preview) ก็ใช้ placeholder
+            isPdf,
+            document_url: isPdf ? toAbsUrl(rawUrl) : null,
+            documentId: p.post_document_id,
+            likes: p.like_count ?? 0,
+            title: p.post_title,
+            tags: Array.isArray(p.tags)
+              ? p.tags.map((t) => (t.startsWith("#") ? t : `#${t}`)).join(" ")
+              : "",
+            authorName: p.author_name || "ไม่ระบุ",
+            authorImg: author2,
+          };
+        });
 
-      if (!cancelled) setRecommendedPosts(mapped);
-    } catch (e) {
-      if (!cancelled) {
-        if (e?.response?.status === 401) {
-          navigate("/login", { replace: true });
-          return
+        if (!cancelled) setRecommendedPosts(mapped);
+      } catch (e) {
+        if (!cancelled) {
+          if (e?.response?.status === 401) {
+            navigate("/login", { replace: true });
+            return;
+          }
+          setRecErr(
+            e?.response?.data?.error || e.message || "โหลดข้อมูลล้มเหลว"
+          );
         }
-        setRecErr(e?.response?.data?.error || e.message || "โหลดข้อมูลล้มเหลว");
+      } finally {
+        if (!cancelled) setLoadingRec(false);
       }
-    } finally {
-      if (!cancelled) setLoadingRec(false);
-    }
-  })();
+    })();
 
-  return () => { cancelled = true; };
-}, [navigate]);
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
 
-const goToPostDetail = (post) => {
-   if (post?.id) navigate(`/posts/${post.id}`);
-};
+  const goToPostDetail = (post) => {
+    if (post?.id) navigate(`/posts/${post.id}`);
+  };
 
-return (
-  <div className="home-page">
-    <div className="home-container">
-      {/* Sidebar */}
-      <Sidebar />
+  return (
+    <div className="home-page">
+      <div className="home-container">
+        {/* Sidebar */}
+        <Sidebar />
 
-      {/* เนื้อหาหลัก */}
-      <div className="home">
-        {/* Search bar */}
-        <div className="search-bar">
-          <input type="text" placeholder="ค้นหาความสนใจของคุณ" />
-          <IoSearch />
-        </div>
+        {/* เนื้อหาหลัก */}
+        <div className="home">
+          {/* Search bar */}
+          <div className="search-bar">
+            <input type="text" placeholder="ค้นหาความสนใจของคุณ" />
+            <IoSearch />
+          </div>
 
-        {/* โพสต์ยอดนิยม */}
-        <h3>โพสต์สรุปยอดเยี่ยมประจำเดือน</h3>
-        <div className="card-list">
-          {rankedPopular.map((post, index) => (
-            <div
-              key={index}
-              onClick={() => goToPostDetail(post)}
-              style={{ cursor: "default" }}
-            >
-              <RankingCard post={post} rank={index + 1} />
-            </div>
-          ))}
-        </div>
-
-        {/* แนะนำสรุปน่าอ่าน */}
-        <h3>แนะนำสรุปน่าอ่าน</h3>
-        {loadingRec && <div>กำลังโหลด...</div>}
-        {recErr && <div style={{ color: "#b00020" }}>{recErr}</div>}
-        <div className="card-list">
-          {!loadingRec &&
-            !recErr &&
-            recommendedPosts.map((post, index) => (
+          {/* โพสต์ยอดนิยม */}
+          <h3>โพสต์สรุปยอดเยี่ยมประจำเดือน</h3>
+          <div className="card-list">
+            {rankedPopular.map((post, index) => (
               <div
-                key={post.id || index}
+                key={index}
                 onClick={() => goToPostDetail(post)}
-                style={{ cursor: "pointer" }}
+                style={{ cursor: "default" }}
               >
-                <PostCard post={post} />
+                <RankingCard post={post} rank={index + 1} />
               </div>
             ))}
+          </div>
+
+          {/* แนะนำสรุปน่าอ่าน */}
+          <h3>แนะนำสรุปน่าอ่าน</h3>
+          {loadingRec && <div>กำลังโหลด...</div>}
+          {recErr && <div style={{ color: "#b00020" }}>{recErr}</div>}
+          <div className="card-list">
+            {!loadingRec &&
+              !recErr &&
+              recommendedPosts.map((post, index) => (
+                <div
+                  key={post.id || index}
+                  onClick={() => goToPostDetail(post)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <PostCard post={post} />
+                </div>
+              ))}
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
 };
 
 export default Home;

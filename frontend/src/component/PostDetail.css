@@ -1,185 +1,355 @@
-/*หน้า PostDetail.css ( โดย prefix )*/
+/* ============================= */
+/* หน้า PostDetail.css (layout เหมือน Figma, ชิดซ้ายจริง) */
+/* ============================= */
 
+/* ✅ ตัวแปรความกว้างร่วม (การ์ด/ฟุตเตอร์) */
+:root {
+  --content-max: clamp(760px, 64vw, 1040px);
+}
 
-.post-detail-page .post-detail {
+.post-detail-page {
+  display: flex;
+  width: 100%;
+  overflow-x: hidden; /* ✅ กันสกอลบาร์แนวนอนทั้งหน้า */
+}
+
+/* คอนเทนต์หลัง Sidebar */
+.post-detail {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 20px;
-  position: relative;
-  margin-left: 200px;
-  max-width: 1200px;
+  align-items: center;
+  padding: 40px 20px;
+  margin-left: 250px; /* ✅ เท่ากับความกว้าง sidebar */
+  background: #f9fbfc;
+  min-height: 100vh;
+  overflow-x: hidden;
 }
 
-/* ปุ่ม Back */
-.post-detail-page .back-btn {
+/* ========================= */
+/* ส่วนหัวโพสต์ (Back + Profile) */
+/* ========================= */
+.post-header {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  max-width: var(--content-max);
+  gap: 15px;
+  margin-bottom: 25px;
+  padding-top: 10px;
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #e75480;
   cursor: pointer;
-  font-size: 16px;
-  margin: 20px 0 10px 80px;
-  position: absolute;
-  left: 20px;
-  top: 20px;
-  z-index: 10;
+  font-size: 22px;
+  transition: 0.25s;
+  margin-right: 15px;
+  background: transparent;
+  border: none;
 }
 
-.post-detail-page .back-btn:hover {
+.back-btn:hover {
   color: #ff7b9c;
+  transform: scale(1.1);
 }
 
-/* โปรไฟล์ */
-.post-detail-page .user-info {
+/* โปรไฟล์ผู้โพสต์ */
+.user-info {
   display: flex;
   align-items: center;
-  position: absolute;
-  top: 70px;
-  left: 200px;
-  margin-bottom: 200px;
+  gap: 10px;
 }
 
-.post-detail-page .profile-img {
-  width: 45px;
-  height: 45px;
+.profile-img {
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   object-fit: cover;
 }
 
-.post-detail-page .user-details {
-  display: flex;
-  flex-direction: column;
-  margin-left: 10px;
-  text-align: left;
-}
-
-.post-detail-page .user-details h4 {
+.user-details h4 {
   margin: 0;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
+  color: #222;
 }
 
-.post-detail-page .user-details .status {
+.user-details .status {
   margin: 0;
   font-size: 14px;
-  color: #555;
+  color: #777;
+}
+
+/* ========================= */
+/* การ์ดแสดง PDF/รูป (กลางหน้าจอ) */
+/* ========================= */
+.post-image {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 10px;
+  margin-bottom: 24px;
+  position: relative;
+  width: 100%;
+}
+
+.pdf-slide-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: var(--content-max);
+  overflow: hidden;
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+  margin: 0 auto;
+  background: #fff;
+}
+
+/* PDF iframe */
+.pdf-frame {
+  width: 100%;
+  height: min(86vh, 1300px);
+  border: none;
+  display: block;
+}
+
+/* ========================= */
+/* Footer ใต้ภาพ (เหมือนการ์ด Figma) */
+/* ========================= */
+.post-footer {
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+}
+
+.actions-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 6px 0 10px;
+}
+
+/* ❤️ ปุ่มหัวใจ */
+.likes {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.likes:hover { transform: scale(1.08); }
+
+/* ไอคอนหัวใจ (ปกติเทา) + เลขไลก์ */
+.likes svg { color: #666; pointer-events: none; }
+.likes span { color: #222; font-weight: 500; font-size: 18px; }
+
+/* ❤️ เมื่อกดแล้วเป็นสีแดง */
+.likes.liked svg {
+  color: #ff3b3b !important;
+  transform: scale(1.15);
 }
 
 /* ปุ่ม share + bookmark */
-.post-detail-page .post-actions {
-  position: absolute;
-  right: 350px;
-  top: 700px;
-  display: flex;
-  gap: 15px;
-}
-
-.post-detail-page .action-icon {
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.post-detail-page .action-icon:hover {
-  color: #0070c0;
-}
-
-/* ส่วน like */
-.post-detail-page .detail-likes {
+.action-right {
   display: flex;
   align-items: center;
-  font-size: 16px;
-  margin-top: 20px;
-  margin-left: 300px;
-  cursor: pointer;
+  gap: 12px;
 }
 
-.post-detail-page .detail-likes span {
-  margin-left: 6px;
-  color: #000;
-}
-
-/* ชื่อโพสต์ */
-.post-detail-page .post-title {
-  text-align: center;
-  font-size: 20px;
-  font-weight: bold;
-  margin-top: 10px;
-  margin-left: -255px;
-}
-
-/* คำอธิบายโพสต์ */
-.post-detail-page .description {
-  text-align: start;
-  font-size: 16px;
-  margin: 0 auto;
-  max-width: 600px;
-  line-height: 1.5;
-  word-wrap: break-word;
-  color: #333;
-}
-
-/* รูปโพสต์ */
-.post-detail-page .post-image {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  margin-top: 100px;
-}
-
-.post-detail-page .post-image img {
-  width: 100%;
-  max-width: 400px;
-  height: auto;
-  border-radius: 8px;
-  display: block;
-  box-shadow: 0px 3px 8px rgba(0, 0, 0, 0.15);
-}
-
-/* ปุ่มซ้าย/ขวา */
-.post-detail-page .nav-btn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  background: rgba(0, 0, 0, 0.5);
+.icon-btn {
+  background: none;
   border: none;
-  color: white;
-  padding: 10px;
   cursor: pointer;
-  border-radius: 50%;
-  transition: 0.2s;
+  font-size: 20px;
+  color: #666;
+  transition: all 0.25s ease;
 }
 
-.post-detail-page .nav-btn:hover {
-  background: #0070c0;
+.icon-btn:hover {
+  color: #e75480;
+  transform: scale(1.1);
 }
 
-.post-detail-page .nav-btn.left {
-  left: 350px;
+.icon-btn svg { pointer-events: none; }
+
+/* ⭐ เมื่อกดแล้วเป็นสีเหลือง */
+.icon-btn.saved svg {
+  color: #f6c344 !important;
+  transform: scale(1.15);
 }
 
-.post-detail-page .nav-btn.right {
-  right: 350px;
+/* ========================= */
+/* เนื้อหาใต้ปุ่ม */
+/* ========================= */
+.post-title {
+  text-align: left;
+  font-size: 20px;
+  font-weight: 700;
+  color: #222;
+  margin-bottom: 6px;
 }
 
-/* จุดบอกตำแหน่ง (dots) */
-.post-detail-page .dots {
-  position: absolute;
-  bottom: 2px;
-  left: 50%;
-  transform: translateX(-50%);
+.description {
+  text-align: left;
+  font-size: 15px;
+  color: #444;
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+
+/* ========================= */
+/* แท็ก */
+/* ========================= */
+.post-tags {
   display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.tag {
+  background: #f2f2f2;
+  color: #555;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.tag:hover {
+  background: #e75480;
+  color: #fff;
+}
+
+/* ========================= */
+/* Responsive */
+/* ========================= */
+
+/* จอกว้างมาก */
+@media (min-width: 1600px) {
+  :root { --content-max: 1120px; }
+}
+
+/* Tablet / Laptop จอเล็ก */
+@media (max-width: 1024px) {
+  :root { --content-max: clamp(620px, 72vw, 880px); }
+  .post-detail { margin-left: 200px; padding: 30px 15px; }
+  .profile-img { width: 45px; height: 45px; }
+  .pdf-frame { height: min(80vh, 1100px); }
+}
+
+/* Tablet และมือถือแนวตั้ง */
+@media (max-width: 768px) {
+  :root { --content-max: 92vw; }
+  .post-detail {
+    margin-left: 0;
+    padding: 25px 10px;
+    align-items: center;
+  }
+  .post-header {
+    flex-wrap: wrap;
+    gap: 10px;
+    max-width: 92vw;
+  }
+  .profile-img { width: 42px; height: 42px; }
+  .pdf-frame { height: 70vh; }
+}
+
+/* มือถือจอเล็ก */
+@media (max-width: 480px) {
+  .profile-img { width: 38px; height: 38px; }
+  .post-title { font-size: 16px; }
+  .description { font-size: 13px; }
+  .pdf-frame { height: 66vh; }
+}
+/* ========================= */
+/* ไลก์/บันทึก สไตล์เดียวกับ Home */
+/* ========================= */
+
+/* แถวปุ่ม (ของเดิมสามารถคงไว้) */
+.post-footer .actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+/* ไลก์แบบปุ่ม (เหมือน Home) */
+.likes-btn {
+  width: auto;                  /* ให้มีทั้งไอคอน + ตัวเลข */
+  height: 29px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform .1s ease, color .2s ease;
+}
+
+.likes-btn svg {
+  font-size: 20px;
+  color: #000000;
+  pointer-events: none;         /* กันอีเวนต์ไปโดนไอคอน */
+}
+
+.likes-btn span {
+  color: #000000;
+  font-weight: 500;
+  font-size: 18px;
+}
+
+.likes-btn:hover svg {
+  transform: scale(1.1);
+}
+
+/* ❤️ สีตอนกดไลก์แล้ว */
+.likes-btn.active svg {
+  color: #ff3b3b;               /* แดง */
+}
+
+/* ปุ่มด้านขวา (แชร์/บันทึก) */
+.action-right {
+  display: flex;
+  align-items: center;
   gap: 8px;
 }
 
-.post-detail-page .dot {
-  width: 10px;
-  height: 10px;
-  background: #bbb;
-  border-radius: 50%;
+/* ปุ่มบันทึก/แชร์ (เหมือน Home) */
+.icon-btn {
+  width: 29px;
+  height: 29px;
+  margin-top: 0;                /* ให้เรียบเสมอแถว */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
   cursor: pointer;
-  transition: 0.2s;
+  transition: transform .1s ease, color .2s ease;
 }
 
-.post-detail-page .dot.active {
-  background: #333;
-  transform: scale(1.2);
+.icon-btn svg {
+  font-size: 20px;
+  color: #000000;
+  pointer-events: none;
+}
+
+.icon-btn:hover svg {
+  color: #000;
+  transform: scale(1.1);
+}
+
+/* สีตอนกดบันทึกแล้ว (active) */
+.icon-btn.active svg {
+  color: #ffd500;               /* เหลือง */
 }
