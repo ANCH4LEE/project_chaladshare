@@ -81,8 +81,11 @@ create table if not exists follows (
     follower_user_id   integer references users(user_id) on delete cascade, -- คนที่กดติดตาม
     followed_user_id   integer references users(user_id) on delete cascade, -- คนที่ถูกติดตาม
     follow_created_at  timestamptz default now(),                           -- เวลา follow
-    primary key (follower_user_id, followed_user_id)                        -- กันซ้ำ
+    primary key (follower_user_id, followed_user_id),                        -- กันซ้ำ
+    check (follower_user_id <> followed_user_id)
 );
+create index if not exists ix_follows_follower on follows(follower_user_id);
+create index if not exists ix_follows_followed on follows(followed_user_id);
 
 -- enum สถานะคำขอเป็นเพื่อน (ใช้ DO-block กันกรณี IF NOT EXISTS ใช้ไม่ได้)
 do $$
@@ -111,6 +114,11 @@ on friend_requests (
     greatest(requester_user_id, addressee_user_id)
 ) where request_status = 'pending';
 
+create index if not exists ix_friendreq_addressee_pending
+  on friend_requests(addressee_user_id) where request_status='pending';
+create index if not exists ix_friendreq_requester
+  on friend_requests(requester_user_id);
+
 -- ตารางเพื่อน (friendships) ที่ถูก accept แล้ว
 create table if not exists friendships (
     user_id    integer not null references users(user_id) on delete cascade, -- user
@@ -120,6 +128,8 @@ create table if not exists friendships (
     check (user_id <> friend_id),                                            -- กันไม่ให้เป็นเพื่อนกับตัวเอง
     check (user_id < friend_id)                                              -- เก็บทิศเดียว (user_id < friend_id)
 );
+create index if not exists ix_friendships_user   on friendships(user_id);
+create index if not exists ix_friendships_friend on friendships(friend_id);
 
 -- ตารางเก็บไฟล์เอกสาร (documents)
 create table if not exists documents (
