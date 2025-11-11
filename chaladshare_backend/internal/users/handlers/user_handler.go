@@ -8,18 +8,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	friendservice "chaladshare_backend/internal/friends/service"
 	postsvc "chaladshare_backend/internal/posts/service"
 	"chaladshare_backend/internal/users/models"
 	"chaladshare_backend/internal/users/service"
 )
 
 type UserHandler struct {
-	svc     service.UserService
-	postSvc postsvc.PostService
+	userSvc    service.UserService
+	postSvc    postsvc.PostService
+	friendsSvc friendservice.FriendService
 }
 
-func NewUserHandler(s service.UserService, p postsvc.PostService) *UserHandler {
-	return &UserHandler{svc: s, postSvc: p}
+func NewUserHandler(s service.UserService, p postsvc.PostService, f friendservice.FriendService) *UserHandler {
+	return &UserHandler{userSvc: s, postSvc: p, friendsSvc: f}
 }
 
 func getUID(c *gin.Context) (int, bool) {
@@ -45,7 +47,7 @@ func (h *UserHandler) GetOwnProfile(c *gin.Context) {
 		return
 	}
 
-	prof, err := h.svc.GetOwnProfile(c.Request.Context(), uid)
+	prof, err := h.userSvc.GetOwnProfile(c.Request.Context(), uid)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "profile not found"})
 		return
@@ -71,7 +73,6 @@ func (h *UserHandler) GetOwnProfile(c *gin.Context) {
 		"user_created_at": prof.CreatedAt,
 	}
 
-	// ---- ตัวเลขที่ต้องการ (คำนวณเฉพาะสิ่งที่ขอ) ----
 	if want("stats") {
 		if cnt, err := h.postSvc.CountByUserID(uid); err == nil {
 			resp["posts_count"] = cnt
@@ -79,20 +80,30 @@ func (h *UserHandler) GetOwnProfile(c *gin.Context) {
 			resp["posts_count"] = 0
 		}
 	}
-	if want("followers") {
-		// ยังไม่มีระบบ follow → ให้ 0 ไปก่อน
-		resp["followers_count"] = 0
-		// ถ้ามีให้เรียก service จริงของคุณ เช่น: cnt, _ := h.svc.CountFollowers(uid)
-	}
-	if want("following") {
-		resp["following_count"] = 0
-		// ถ้ามี: cnt, _ := h.svc.CountFollowing(uid)
+	if want("followers") || want("following") {
+		fols, folg, _, err := h.friendsSvc.GetFollowStats(c.Request.Context(), uid)
+		if err == nil {
+			if want("followers") {
+				resp["followers_count"] = fols
+			}
+			if want("following") {
+				resp["following_count"] = folg
+			}
+		} else {
+			if want("followers") {
+				resp["followers_count"] = 0
+			}
+			if want("following") {
+				resp["following_count"] = 0
+			}
+		}
 	}
 	c.JSON(http.StatusOK, resp)
 }
 
 func (h *UserHandler) GetViewedUserProfile(c *gin.Context) {
-	if _, ok := getUID(c); !ok {
+	viewerID, ok := getUID(c)
+	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
@@ -103,7 +114,7 @@ func (h *UserHandler) GetViewedUserProfile(c *gin.Context) {
 		return
 	}
 
-	prof, err := h.svc.GetViewedUserProfile(c.Request.Context(), targetID)
+	prof, err := h.userSvc.GetViewedUserProfile(c.Request.Context(), targetID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "profile not found"})
 		return
@@ -116,16 +127,22 @@ func (h *UserHandler) GetViewedUserProfile(c *gin.Context) {
 	}
 	want := func(k string) bool { return withSet["all"] || withSet[k] }
 
-	// base response (อย่าส่ง email/status ของคนอื่น)
+	isFollowing := false
+	if viewerID != targetID {
+		if ok2, err := h.friendsSvc.IsFollowing(c.Request.Context(), viewerID, targetID); err == nil {
+			isFollowing = ok2
+		}
+	}
+
 	resp := gin.H{
 		"user_id":        prof.UserID,
 		"username":       prof.Username,
 		"avatar_url":     prof.AvatarURL,
 		"avatar_storage": prof.AvatarStore,
 		"bio":            prof.Bio,
+		"is_following":   isFollowing,
 	}
 
-	// ตัวเลขที่ขอ (อิง targetID)
 	if want("stats") {
 		if cnt, err := h.postSvc.CountByUserID(targetID); err == nil {
 			resp["posts_count"] = cnt
@@ -133,13 +150,24 @@ func (h *UserHandler) GetViewedUserProfile(c *gin.Context) {
 			resp["posts_count"] = 0
 		}
 	}
-	if want("followers") {
-		resp["followers_count"] = 0 // TODO: เปลี่ยนเป็น service จริงเมื่อพร้อม
+	if want("followers") || want("following") {
+		fols, folg, _, err := h.friendsSvc.GetFollowStats(c.Request.Context(), targetID)
+		if err == nil {
+			if want("followers") {
+				resp["followers_count"] = fols
+			}
+			if want("following") {
+				resp["following_count"] = folg
+			}
+		} else {
+			if want("followers") {
+				resp["followers_count"] = 0
+			}
+			if want("following") {
+				resp["following_count"] = 0
+			}
+		}
 	}
-	if want("following") {
-		resp["following_count"] = 0 // TODO: เปลี่ยนเป็น service จริงเมื่อพร้อม
-	}
-
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -156,7 +184,7 @@ func (h *UserHandler) UpdateOwnProfile(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.UpdateOwnProfile(c.Request.Context(), uid, &req); err != nil {
+	if err := h.userSvc.UpdateOwnProfile(c.Request.Context(), uid, &req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

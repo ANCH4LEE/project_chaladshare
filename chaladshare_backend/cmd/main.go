@@ -28,6 +28,10 @@ import (
 	UserHandler "chaladshare_backend/internal/users/handlers"
 	UserRepo "chaladshare_backend/internal/users/repository"
 	UserService "chaladshare_backend/internal/users/service"
+
+	FriendsHandler "chaladshare_backend/internal/friends/handlers"
+	FriendsRepo "chaladshare_backend/internal/friends/repository"
+	FriendsService "chaladshare_backend/internal/friends/service"
 )
 
 func TimeoutMiddleware(timeout time.Duration) gin.HandlerFunc {
@@ -69,10 +73,14 @@ func main() {
 	postService := PostService.NewPostService(postRepository)
 	postHandler := PostHandler.NewPostHandler(postService)
 
+	friendsRepo := FriendsRepo.NewFriendRepository(db.GetDB())
+	friendsService := FriendsService.NewFriendService(friendsRepo)
+	friendsHandler := FriendsHandler.NewFriendHandler(friendsService)
+
 	// user repo service handler
 	userRepository := UserRepo.NewUserRepository(db.GetDB())
 	userService := UserService.NewUserService(userRepository)
-	userHandler := UserHandler.NewUserHandler(userService, postService)
+	userHandler := UserHandler.NewUserHandler(userService, postService, friendsService)
 
 	go func() {
 		for {
@@ -133,7 +141,6 @@ func main() {
 	protected := v1.Group("/")
 	protected.Use(middleware.JWT([]byte(cfg.JWTSecret), cfg.CookieName))
 	{
-
 		// Post
 		posts := protected.Group("/posts")
 		{
@@ -162,9 +169,34 @@ func main() {
 			profile.GET("/:id", userHandler.GetViewedUserProfile)
 		}
 
+		social := protected.Group("/social")
+		{
+			// follow / unfollow
+			social.POST("/follow", friendsHandler.FollowUser)         // body: {"followed_user_id": 123}
+			social.DELETE("/follow/:id", friendsHandler.UnfollowUser) // :id = target user id
+
+			// lists
+			social.GET("/friends/:userID", friendsHandler.ListFriends)
+			social.GET("/followers/:userID", friendsHandler.ListFollowers) // owner-only guard ใน service
+			social.GET("/following/:userID", friendsHandler.ListFollowing) // owner-only guard ใน service
+
+			// counters
+			social.GET("/stats/:userID", friendsHandler.GetStats)
+
+			// friend requests
+			social.POST("/requests", friendsHandler.SendFriendRequest)
+			social.GET("/requests/incoming", friendsHandler.ListIncomingRequests)
+			social.GET("/requests/outgoing", friendsHandler.ListOutgoingRequests)
+			social.POST("/requests/:id/accept", friendsHandler.AcceptFriendRequest)
+			social.POST("/requests/:id/decline", friendsHandler.DeclineFriendRequest)
+			social.DELETE("/requests/:id", friendsHandler.CancelFriendRequest)
+
+			// unfriend
+			social.DELETE("/friends/:userID", friendsHandler.Unfriend)
+		}
+
 	}
 
-	//Run Server
 	if err := r.Run(":" + cfg.AppPort); err != nil {
 		log.Fatalf("Failed to run server: %v", err)
 	}
