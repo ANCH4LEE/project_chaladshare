@@ -159,6 +159,7 @@ create table if not exists posts (
     post_description    text,                                         -- คำอธิบาย
     post_visibility     varchar(10) check (post_visibility in ('public','friends')), -- การมองเห็น
     post_document_id    integer references documents(document_id),            -- อ้างไฟล์
+    post_cover_url      text,
     post_summary_id     integer references summaries(summary_id),             -- อ้างสรุป
     post_created_at     timestamptz default now(),
     post_updated_at     timestamptz default now()
