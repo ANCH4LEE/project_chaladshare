@@ -17,6 +17,7 @@ type Post struct {
 	Description  string    `json:"post_description"`
 	Visibility   string    `json:"post_visibility"`
 	DocumentID   *int      `json:"post_document_id"`
+	CoverURL     *string   `json:"post_cover_url"`
 	SummaryID    *int      `json:"post_summary_id"`
 	CreatedAt    time.Time `json:"post_created_at"`
 	UpdatedAt    time.Time `json:"post_updated_at"`
@@ -69,6 +70,7 @@ type PostResponse struct {
 	UpdatedAt   time.Time `json:"post_updated_at"`
 
 	FileURL   *string  `json:"file_url"`
+	CoverURL  *string  `json:"cover_url"`
 	Tags      []string `json:"tags"`
 	LikeCount int      `json:"like_count"`
 	SaveCount int      `json:"save_count"`

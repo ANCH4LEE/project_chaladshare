@@ -3,9 +3,13 @@ package handlers
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -61,6 +65,49 @@ func (h *FileHandler) UploadFile(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"document_id": resp.DocumentID,
 		"pdf_url":     publicURL,
+	})
+}
+
+func (h *FileHandler) UploadCover(c *gin.Context) {
+	uid := c.GetInt("user_id")
+	if uid == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	fh, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "กรุณาแนบรูปหน้าปก"})
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(fh.Filename)) // .jpg / .png ...
+	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "รองรับเฉพาะ .jpg .jpeg .png"})
+		return
+	}
+
+	// สร้างโฟลเดอร์สำหรับ cover ถ้ายังไม่มี
+	baseDir := "./uploads/covers"
+	if err := os.MkdirAll(baseDir, 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "ไม่สามารถสร้างโฟลเดอร์ได้"})
+		return
+	}
+
+	id := uuid.New().String()
+	filename := fmt.Sprintf("cover_%s_%d%s", id, time.Now().UnixNano(), ext)
+	abs := filepath.Join(baseDir, filename)
+
+	// URL ที่ frontend จะใช้
+	publicURL := "/uploads/covers/" + filename
+
+	if err := c.SaveUploadedFile(fh, abs); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "ไม่สามารถบันทึกไฟล์หน้าปกได้"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"cover_url": publicURL,
 	})
 }
 

@@ -41,13 +41,18 @@ func (r *postRepository) CreatePost(post *models.Post, tags []string) (int, erro
 	var docArg interface{} = *post.DocumentID
 
 	var sumArg interface{} = nil
-	if post.SummaryID != nil { // ถ้าเป็น *int
+	if post.SummaryID != nil {
 		sumArg = *post.SummaryID
 	}
 
+	var coverArg interface{} = nil
+	if post.CoverURL != nil {
+		coverArg = *post.CoverURL
+	}
+
 	query := `INSERT INTO posts (post_author_user_id, post_title, post_description,
-			  post_visibility, post_document_id, post_summary_id) 
-			  SELECT $1, $2, $3, $4, $5, $6
+			  post_visibility, post_document_id, post_cover_url, post_summary_id) 
+			  SELECT $1, $2, $3, $4, $5, $6, $7
 			  FROM documents d
 			  WHERE d.document_id = $5 AND d.document_user_id = $1
 			  RETURNING post_id;`
@@ -56,7 +61,7 @@ func (r *postRepository) CreatePost(post *models.Post, tags []string) (int, erro
 	if err := tx.QueryRow(
 		query,
 		post.AuthorUserID, post.Title, post.Description,
-		post.Visibility, docArg, sumArg,
+		post.Visibility, docArg, coverArg, sumArg,
 	).Scan(&postID); err != nil {
 		if err == sql.ErrNoRows {
 			return 0, fmt.Errorf("invalid document_id or not owned by user")
@@ -163,6 +168,7 @@ func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 		COALESCE(ps.post_like_count, 0) AS post_like_count,
 		COALESCE(ps.post_save_count, 0) AS post_save_count,
 		d.document_url AS document_file_url,
+		p.post_cover_url,
 		ARRAY_REMOVE(ARRAY_AGG(DISTINCT t.tag_name), NULL) AS tags
 	FROM posts p
 	JOIN users u ON u.user_id = p.post_author_user_id
@@ -170,7 +176,7 @@ func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 	LEFT JOIN post_tags pt ON pt.post_tag_post_id = p.post_id
 	LEFT JOIN tags t ON t.tag_id = pt.post_tag_tag_id
 	LEFT JOIN documents d ON d.document_id = p.post_document_id
-	GROUP BY p.post_id, u.username, ps.post_like_count, ps.post_save_count, d.document_url
+	GROUP BY p.post_id, u.username, ps.post_like_count, ps.post_save_count, d.document_url, p.post_cover_url
 	ORDER BY p.post_created_at DESC;`
 
 	rows, err := r.db.Query(query)
@@ -182,11 +188,12 @@ func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 	var posts []models.PostResponse
 	for rows.Next() {
 		var (
-			p       models.PostResponse
-			tags    pq.StringArray
-			fileURL sql.NullString
-			docID   sql.NullInt64
-			sumID   sql.NullInt64
+			p        models.PostResponse
+			tags     pq.StringArray
+			fileURL  sql.NullString
+			coverURL sql.NullString
+			docID    sql.NullInt64
+			sumID    sql.NullInt64
 		)
 
 		if err := rows.Scan(
@@ -203,6 +210,7 @@ func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 			&p.LikeCount,
 			&p.SaveCount,
 			&fileURL,
+			&coverURL,
 			&tags,
 		); err != nil {
 			return nil, err
@@ -218,6 +226,9 @@ func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 		}
 		if fileURL.Valid {
 			p.FileURL = &fileURL.String
+		}
+		if coverURL.Valid {
+			p.CoverURL = &coverURL.String
 		}
 
 		p.Tags = []string(tags)
@@ -237,6 +248,7 @@ func (r *postRepository) GetPostByID(postID int) (*models.PostResponse, error) {
 		COALESCE(ps.post_like_count, 0)  AS post_like_count,
 		COALESCE(ps.post_save_count, 0)  AS post_save_count,
 		d.document_url AS document_file_url,
+		p.post_cover_url,
 		ARRAY_REMOVE(ARRAY_AGG(DISTINCT t.tag_name), NULL) AS tags
 	FROM posts p
 	JOIN users u ON u.user_id = p.post_author_user_id
@@ -249,11 +261,12 @@ func (r *postRepository) GetPostByID(postID int) (*models.PostResponse, error) {
 
 	row := r.db.QueryRow(query, postID)
 	var (
-		p       models.PostResponse
-		tags    pq.StringArray
-		fileURL sql.NullString
-		docID   sql.NullInt64
-		sumID   sql.NullInt64
+		p        models.PostResponse
+		tags     pq.StringArray
+		fileURL  sql.NullString
+		coverURL sql.NullString
+		docID    sql.NullInt64
+		sumID    sql.NullInt64
 	)
 
 	if err := row.Scan(
@@ -270,6 +283,7 @@ func (r *postRepository) GetPostByID(postID int) (*models.PostResponse, error) {
 		&p.LikeCount,
 		&p.SaveCount,
 		&fileURL,
+		&coverURL,
 		&tags,
 	); err != nil {
 		if err == sql.ErrNoRows {
@@ -288,6 +302,9 @@ func (r *postRepository) GetPostByID(postID int) (*models.PostResponse, error) {
 	}
 	if fileURL.Valid {
 		p.FileURL = &fileURL.String
+	}
+	if coverURL.Valid {
+		p.CoverURL = &coverURL.String
 	}
 
 	p.Tags = []string(tags)
