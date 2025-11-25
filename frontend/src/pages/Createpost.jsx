@@ -7,8 +7,11 @@ import axios from "axios";
 import "../component/Createpost.css";
 import Sidebar from "./Sidebar";
 
-const MAX_FILE_MB = 20; // จำกัดขนาดไฟล์ 20MB
+const MAX_FILE_MB = 10; // จำกัดขนาดไฟล์ 10MB
 const ACCEPTED_MIME = ["application/pdf"];
+
+const MAX_COVER_MB = 5;
+const ACCEPTED_COVER_MIME = ["image/jpeg", "image/png"];
 
 function parseTags(input) {
   return input
@@ -24,6 +27,7 @@ const CreatePost = () => {
     tags: "",
     visibility: "public",
     file: null,
+    cover: null,
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -35,6 +39,26 @@ const CreatePost = () => {
       ...formData,
       [e.target.name]: e.target.value,
     });
+  };
+
+  const handleCoverChange = (e) => {
+    setErrorMsg("");
+    const f = e.target.files?.[0];
+    if (!f) return;
+
+    const sizeMB = f.size / (1024 * 1024);
+    if (!ACCEPTED_COVER_MIME.includes(f.type)) {
+      setErrorMsg("รองรับเฉพาะรูปภาพ .jpg .png สำหรับหน้าปก");
+      e.target.value = "";
+      return;
+    }
+    if (sizeMB > MAX_COVER_MB) {
+      setErrorMsg(`ไฟล์หน้าปกใหญ่เกินไป (สูงสุด ${MAX_COVER_MB} MB)`);
+      e.target.value = "";
+      return;
+    }
+
+    setForm({ ...formData, cover: f });
   };
 
   // เลือกไฟล์ + ตรวจสอบชนิด+ขนาด
@@ -66,6 +90,10 @@ const CreatePost = () => {
       setErrorMsg("กรุณากรอกหัวข้อ");
       return;
     }
+    if (!formData.cover) {
+      setErrorMsg("กรุณาอัปโหลดรูปหน้าปก");
+      return;
+    }
     if (!formData.file) {
       setErrorMsg("กรุณาอัปโหลดไฟล์ .pdf");
       return;
@@ -73,11 +101,27 @@ const CreatePost = () => {
 
     try {
       setIsLoading(true);
+      let coverUrl = null;
+      if (formData.cover) {
+        const coverData = new FormData();
+        coverData.append("file", formData.cover);
 
-      // อัปโหลดไฟล์ PDF ก่อน
+      
+        const coverRes = await axios.post("/files/cover", coverData, {
+          withCredentials: true,
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+
+        coverUrl = coverRes.data?.cover_url;
+        if (!coverUrl) {
+          throw new Error("ไม่พบ cover_url จากการอัปโหลดหน้าปก");
+        }
+      }
+
+      // อัปโหลดไฟล์ PDF
       const fileData = new FormData();
       fileData.append("file", formData.file);
-      const uploadRes = await axios.post("/files/upload", fileData, {
+      const uploadRes = await axios.post("/files/doc", fileData, {
         withCredentials: true,
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -91,13 +135,12 @@ const CreatePost = () => {
         post_description: formData.description.trim(),
         post_visibility: formData.visibility,
         document_id: documentId,
+        cover_url: coverUrl,
         // post_summary_id: null,
         tags: parseTags(formData.tags),
       };
 
-      await axios.post("/posts", postData,
-        { withCredentials: true }
-      );
+      await axios.post("/posts", postData, { withCredentials: true });
       alert("โพสต์สำเร็จ!");
       handleCancel();
     } catch (err) {
@@ -121,6 +164,7 @@ const CreatePost = () => {
       tags: "",
       visibility: "public",
       file: null,
+      cover: null,
     });
     setErrorMsg("");
     navigate("/home");
@@ -156,6 +200,36 @@ const CreatePost = () => {
                 <option value="public">สาธารณะ</option>
                 <option value="friends">เฉพาะเพื่อน</option>
               </select>
+            </div>
+          </div>
+
+          {/* อัปโหลดหน้าปก */}
+          <div className="form-group">
+            <label>
+              รูปหน้าปก<span className="required">*</span>
+            </label>
+            <div className="upload-box">
+              <input
+                type="file"
+                id="cover-upload"
+                onChange={handleCoverChange}
+                accept="image/*"
+                disabled={isLoading}
+              />
+              <label htmlFor="cover-upload" className="upload-label">
+                {formData.cover ? (
+                  <span>{formData.cover.name}</span>
+                ) : (
+                  <>
+                    <img
+                      src="https://cdn-icons-png.flaticon.com/512/1829/1829586.png"
+                      alt="cover"
+                      className="upload-icon"
+                    />
+                    <p>เพิ่มรูปหน้าปก</p>
+                  </>
+                )}
+              </label>
             </div>
           </div>
 

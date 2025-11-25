@@ -82,16 +82,16 @@ const Home = () => {
           : [];
 
         const mapped = rows.map((p) => {
-          const rawUrl = p.file_url || null;
-          const isPdf = /\.pdf$/i.test(rawUrl || "");
-          const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(rawUrl || "");
+          const coverRaw = p.cover_url || null;        
+  const coverImg = coverRaw
+    ? toAbsUrl(coverRaw)
+    : "/img/pdf-placeholder.jpg";           
+
+  const rawUrl = p.file_url || null;
+  const isPdf = /\.pdf$/i.test(rawUrl || "");
           return {
             id: p.post_id,
-            img:
-              rawUrl && !isPdf && isImage
-                ? toAbsUrl(rawUrl) // ถ้าเป็นรูปภาพ ก็ใช้
-                : "/img/pdf-placeholder.jpg", // ถ้าไม่ใช่ (เช่น /@preview) ก็ใช้ placeholder
-            isPdf,
+            img: coverImg, isPdf,
             document_url: isPdf ? toAbsUrl(rawUrl) : null,
             documentId: p.post_document_id,
             likes: p.like_count ?? 0,

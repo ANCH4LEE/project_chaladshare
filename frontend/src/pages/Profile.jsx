@@ -192,26 +192,34 @@ const Profile = () => {
 
         const format = (list) =>
           Array.isArray(list)
-            ? list.map((p) => ({
-                id: p.post_id,
-                img: (() => {
-                  const raw = p.file_url || "";
-                  const isPdf = /\.pdf$/i.test(raw);
-                  if (!raw || isPdf) return "/img/pdf-placeholder.jpg";
-                  return toAbsUrl(raw);
-                })(),
-                isPdf: /\.pdf$/i.test(p.file_url || ""),
-                likes: p.like_count ?? 0,
-                title: p.post_title,
-                tags: Array.isArray(p.tags)
-                  ? p.tags
-                      .map((t) => (t.startsWith("#") ? t : `#${t}`))
-                      .join(" ")
-                  : "",
-                authorId: p.author_id ?? p.post_user_id ?? p.user_id,
-                authorName: prof?.data?.username || (isOwn ? "ฉัน" : "ผู้ใช้"),
-                authorImg: prof?.data?.avatar_url || "/img/author2.jpg",
-              }))
+            ? list.map((p) => {
+                const fileRaw = p.file_url || "";
+                const coverRaw = p.cover_url || "";
+                const isPdf = /\.pdf$/i.test(fileRaw);
+
+                const imgSrc = coverRaw
+                  ? toAbsUrl(coverRaw) // ถ้ามีรูปหน้าปก → ใช้เลย
+                  : !fileRaw || isPdf
+                  ? "/img/pdf-placeholder.jpg" // ไม่มีรูป + เป็น pdf → placeholder
+                  : toAbsUrl(fileRaw); // มีรูป (เช่น รูปแทนสรุป) → ใช้รูปนั้น
+
+                return {
+                  id: p.post_id,
+                  img: imgSrc,
+                  isPdf,
+                  likes: p.like_count ?? 0,
+                  title: p.post_title,
+                  tags: Array.isArray(p.tags)
+                    ? p.tags
+                        .map((t) => (t.startsWith("#") ? t : `#${t}`))
+                        .join(" ")
+                    : "",
+                  authorId: p.author_id ?? p.post_user_id ?? p.user_id,
+                  authorName:
+                    prof?.data?.username || (isOwn ? "ฉัน" : "ผู้ใช้"),
+                  authorImg: prof?.data?.avatar_url || "/img/author2.jpg",
+                };
+              })
             : [];
 
         setProfile((prev) => ({
