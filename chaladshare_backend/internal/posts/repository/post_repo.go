@@ -168,7 +168,7 @@ func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 		COALESCE(ps.post_like_count, 0) AS post_like_count,
 		COALESCE(ps.post_save_count, 0) AS post_save_count,
 		d.document_url AS document_file_url,
-		p.post_cover_url,
+		p.post_cover_url, up.avatar_url,
 		ARRAY_REMOVE(ARRAY_AGG(DISTINCT t.tag_name), NULL) AS tags
 	FROM posts p
 	JOIN users u ON u.user_id = p.post_author_user_id
@@ -176,7 +176,8 @@ func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 	LEFT JOIN post_tags pt ON pt.post_tag_post_id = p.post_id
 	LEFT JOIN tags t ON t.tag_id = pt.post_tag_tag_id
 	LEFT JOIN documents d ON d.document_id = p.post_document_id
-	GROUP BY p.post_id, u.username, ps.post_like_count, ps.post_save_count, d.document_url, p.post_cover_url
+	LEFT JOIN user_profiles up ON up.profile_user_id = u.user_id
+	GROUP BY p.post_id, u.username, ps.post_like_count, ps.post_save_count, d.document_url, p.post_cover_url, up.avatar_url
 	ORDER BY p.post_created_at DESC;`
 
 	rows, err := r.db.Query(query)
@@ -188,12 +189,13 @@ func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 	var posts []models.PostResponse
 	for rows.Next() {
 		var (
-			p        models.PostResponse
-			tags     pq.StringArray
-			fileURL  sql.NullString
-			coverURL sql.NullString
-			docID    sql.NullInt64
-			sumID    sql.NullInt64
+			p         models.PostResponse
+			tags      pq.StringArray
+			fileURL   sql.NullString
+			coverURL  sql.NullString
+			avatarURL sql.NullString
+			docID     sql.NullInt64
+			sumID     sql.NullInt64
 		)
 
 		if err := rows.Scan(
@@ -211,6 +213,7 @@ func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 			&p.SaveCount,
 			&fileURL,
 			&coverURL,
+			&avatarURL,
 			&tags,
 		); err != nil {
 			return nil, err
@@ -230,6 +233,9 @@ func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 		if coverURL.Valid {
 			p.CoverURL = &coverURL.String
 		}
+		if avatarURL.Valid {
+			p.AvatarURL = &avatarURL.String
+		}
 
 		p.Tags = []string(tags)
 		posts = append(posts, p)
@@ -248,7 +254,7 @@ func (r *postRepository) GetPostByID(postID int) (*models.PostResponse, error) {
 		COALESCE(ps.post_like_count, 0)  AS post_like_count,
 		COALESCE(ps.post_save_count, 0)  AS post_save_count,
 		d.document_url AS document_file_url,
-		p.post_cover_url,
+		p.post_cover_url, up.avatar_url,
 		ARRAY_REMOVE(ARRAY_AGG(DISTINCT t.tag_name), NULL) AS tags
 	FROM posts p
 	JOIN users u ON u.user_id = p.post_author_user_id
@@ -256,17 +262,19 @@ func (r *postRepository) GetPostByID(postID int) (*models.PostResponse, error) {
 	LEFT JOIN post_tags pt ON pt.post_tag_post_id = p.post_id
 	LEFT JOIN tags t ON t.tag_id = pt.post_tag_tag_id
 	LEFT JOIN documents d ON d.document_id = p.post_document_id
+	LEFT JOIN user_profiles up ON up.profile_user_id = u.user_id
 	WHERE p.post_id = $1
-	GROUP BY p.post_id, u.username, ps.post_like_count, ps.post_save_count, d.document_url;`
+	GROUP BY p.post_id, u.username, ps.post_like_count, ps.post_save_count, d.document_url, up.avatar_url;`
 
 	row := r.db.QueryRow(query, postID)
 	var (
-		p        models.PostResponse
-		tags     pq.StringArray
-		fileURL  sql.NullString
-		coverURL sql.NullString
-		docID    sql.NullInt64
-		sumID    sql.NullInt64
+		p         models.PostResponse
+		tags      pq.StringArray
+		fileURL   sql.NullString
+		coverURL  sql.NullString
+		avatarURL sql.NullString
+		docID     sql.NullInt64
+		sumID     sql.NullInt64
 	)
 
 	if err := row.Scan(
@@ -284,6 +292,7 @@ func (r *postRepository) GetPostByID(postID int) (*models.PostResponse, error) {
 		&p.SaveCount,
 		&fileURL,
 		&coverURL,
+		&avatarURL,
 		&tags,
 	); err != nil {
 		if err == sql.ErrNoRows {
@@ -305,6 +314,9 @@ func (r *postRepository) GetPostByID(postID int) (*models.PostResponse, error) {
 	}
 	if coverURL.Valid {
 		p.CoverURL = &coverURL.String
+	}
+	if avatarURL.Valid {
+		p.AvatarURL = &avatarURL.String
 	}
 
 	p.Tags = []string(tags)

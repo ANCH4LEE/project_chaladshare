@@ -26,7 +26,7 @@ func NewFileHandler(fileservice service.FileService) *FileHandler {
 	return &FileHandler{fileservice: fileservice}
 }
 
-// POST /api/v1/files/upload
+// PDF
 func (h *FileHandler) UploadFile(c *gin.Context) {
 	uid := c.GetInt("user_id")
 	if uid == 0 {
@@ -68,6 +68,7 @@ func (h *FileHandler) UploadFile(c *gin.Context) {
 	})
 }
 
+// cover image
 func (h *FileHandler) UploadCover(c *gin.Context) {
 	uid := c.GetInt("user_id")
 	if uid == 0 {
@@ -87,7 +88,6 @@ func (h *FileHandler) UploadCover(c *gin.Context) {
 		return
 	}
 
-	// สร้างโฟลเดอร์สำหรับ cover ถ้ายังไม่มี
 	baseDir := "./uploads/covers"
 	if err := os.MkdirAll(baseDir, 0755); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "ไม่สามารถสร้างโฟลเดอร์ได้"})
@@ -98,7 +98,6 @@ func (h *FileHandler) UploadCover(c *gin.Context) {
 	filename := fmt.Sprintf("cover_%s_%d%s", id, time.Now().UnixNano(), ext)
 	abs := filepath.Join(baseDir, filename)
 
-	// URL ที่ frontend จะใช้
 	publicURL := "/uploads/covers/" + filename
 
 	if err := c.SaveUploadedFile(fh, abs); err != nil {
@@ -108,6 +107,49 @@ func (h *FileHandler) UploadCover(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{
 		"cover_url": publicURL,
+	})
+}
+
+// avatar image
+func (h *FileHandler) UploadAvatar(c *gin.Context) {
+	uid := c.GetInt("user_id")
+	if uid == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	fh, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "กรุณาแนบรูปโปรไฟล์"})
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(fh.Filename)) // .jpg / .png ...
+	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "รองรับเฉพาะ .jpg .jpeg .png"})
+		return
+	}
+
+	baseDir := "./uploads/avatars"
+	if err := os.MkdirAll(baseDir, 0755); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "ไม่สามารถสร้างโฟลเดอร์ได้"})
+		return
+	}
+
+	id := uuid.New().String()
+	filename := fmt.Sprintf("avatar_%d_%s_%d%s", uid, id, time.Now().UnixNano(), ext)
+	abs := filepath.Join(baseDir, filename)
+
+	publicURL := "/uploads/avatars/" + filename
+
+	if err := c.SaveUploadedFile(fh, abs); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "ไม่สามารถบันทึกรูปโปรไฟล์ได้"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"avatar_url":     publicURL,
+		"avatar_storage": "local",
 	})
 }
 

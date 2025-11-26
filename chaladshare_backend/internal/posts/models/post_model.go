@@ -71,6 +71,7 @@ type PostResponse struct {
 
 	FileURL   *string  `json:"file_url"`
 	CoverURL  *string  `json:"cover_url"`
+	AvatarURL *string  `json:"avatar_url"`
 	Tags      []string `json:"tags"`
 	LikeCount int      `json:"like_count"`
 	SaveCount int      `json:"save_count"`

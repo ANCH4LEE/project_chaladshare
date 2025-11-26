@@ -156,10 +156,12 @@ func main() {
 		files := protected.Group("/files")
 		{
 			files.POST("/doc", fileHandler.UploadFile)
-			files.POST("/cover", fileHandler.UploadCover)
 			files.GET("/user/:user_id", fileHandler.GetFilesByUserID)
 			files.GET("/:document_id/summary", fileHandler.GetSummaryByDocumentID)
 			files.DELETE("/:document_id", fileHandler.DeleteFile)
+
+			files.POST("/cover", fileHandler.UploadCover)
+			files.POST("/avatar", fileHandler.UploadAvatar)
 		}
 
 		//Profile
