@@ -8,6 +8,7 @@ import { IoSearch } from "react-icons/io5";
 
 import PostCard from "../component/Postcard";
 import RankingCard from "../component/RankingCard";
+import Avatar from "../assets/default.png";
 import author2 from "../assets/author2.jpg";
 import one from "../assets/one.jpg";
 import two from "../assets/two.jpg";
@@ -82,16 +83,20 @@ const Home = () => {
           : [];
 
         const mapped = rows.map((p) => {
-          const coverRaw = p.cover_url || null;        
-  const coverImg = coverRaw
-    ? toAbsUrl(coverRaw)
-    : "/img/pdf-placeholder.jpg";           
+          const coverRaw = p.cover_url || null;
+          const coverImg = coverRaw
+            ? toAbsUrl(coverRaw)
+            : "/img/pdf-placeholder.jpg";
 
-  const rawUrl = p.file_url || null;
-  const isPdf = /\.pdf$/i.test(rawUrl || "");
+          const rawUrl = p.file_url || null;
+          const isPdf = /\.pdf$/i.test(rawUrl || "");
+          const avatarRaw = p.avatar_url || "";
+          const authorImg = avatarRaw ? toAbsUrl(avatarRaw) : Avatar;
+
           return {
             id: p.post_id,
-            img: coverImg, isPdf,
+            img: coverImg,
+            isPdf,
             document_url: isPdf ? toAbsUrl(rawUrl) : null,
             documentId: p.post_document_id,
             likes: p.like_count ?? 0,
@@ -100,7 +105,7 @@ const Home = () => {
               ? p.tags.map((t) => (t.startsWith("#") ? t : `#${t}`)).join(" ")
               : "",
             authorName: p.author_name || "ไม่ระบุ",
-            authorImg: author2,
+            authorImg,
           };
         });
 

@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { VscEye, VscEyeClosed } from "react-icons/vsc";
 import axios from "axios";
 import Sidebar from "./Sidebar";
 import PostCard from "../component/Postcard";
+import Avatar from "../assets/default.png";
 import "../component/Profile.css";
-import { VscEye, VscEyeClosed } from "react-icons/vsc";
 
 const API_HOST = "http://localhost:8080";
 const toAbsUrl = (p) => {
@@ -34,7 +35,7 @@ const Profile = () => {
     name: "",
     bio: "",
     email: "",
-    avatar: "/img/author2.jpg",
+    avatar: Avatar,
     posts: 0,
     followers: 0,
     following: 0,
@@ -91,21 +92,31 @@ const Profile = () => {
       setSaving(true);
       setSaveErr("");
 
-      // 1) อัปเดตชื่อ/อีเมล/คำอธิบาย
+      // อัปโหลดรูป
+      let avatarUrl = null;
+      let avatarStorage = null;
+
+      if (avatarFile) {
+        const fd = new FormData();
+        fd.append("file", avatarFile);
+        const res = await axios.post("/files/avatar", fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+
+        avatarUrl = res?.data?.avatar_url || null;
+        avatarStorage = res?.data?.avatar_storage || "local";
+      }
+
+      // edit profile
       await axios.put("/profile", {
         username: editForm.name,
         email: editForm.email,
         bio: editForm.bio,
+        ...(avatarUrl && {
+          avatar_url: avatarUrl,
+          avatar_storage: avatarStorage,
+        }),
       });
-
-      // 2) อัปโหลดรูป (ถ้ามี)
-      if (avatarFile) {
-        const fd = new FormData();
-        fd.append("avatar", avatarFile);
-        await axios.post("/profile/avatar", fd, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-      }
 
       // 3) เปลี่ยนรหัสผ่าน (ถ้ากรอกครบ)
       if (pwdForm.current && pwdForm.newPwd && pwdForm.confirm) {
@@ -117,12 +128,18 @@ const Profile = () => {
       }
 
       // 4) อัปเดตสถานะบนหน้า
+      const fullAvatarUrl = avatarPreview
+        ? avatarPreview
+        : avatarUrl
+        ? toAbsUrl(avatarUrl)
+        : profile.avatar;
+
       setProfile((p) => ({
         ...p,
         name: editForm.name,
         email: editForm.email,
         bio: editForm.bio,
-        avatar: avatarPreview || p.avatar,
+        avatar: avatarPreview || fullAvatarUrl || p.avatar,
       }));
       setIsEditing(false);
     } catch (e) {
@@ -163,6 +180,7 @@ const Profile = () => {
     if (isOwn == null || !ownerId) return;
     setLoading(true);
     setErr("");
+
     const fetchData = async () => {
       try {
         const prof = isOwn
@@ -189,6 +207,9 @@ const Profile = () => {
             savedRes = await axios.get("/posts/saved");
           } catch {}
         }
+
+        const rawAvatar = prof?.data?.avatar_url || "";
+        const avatarForCards = rawAvatar ? toAbsUrl(rawAvatar) : Avatar;
 
         const format = (list) =>
           Array.isArray(list)
@@ -217,21 +238,27 @@ const Profile = () => {
                   authorId: p.author_id ?? p.post_user_id ?? p.user_id,
                   authorName:
                     prof?.data?.username || (isOwn ? "ฉัน" : "ผู้ใช้"),
-                  authorImg: prof?.data?.avatar_url || "/img/author2.jpg",
+                  authorImg: avatarForCards,
                 };
               })
             : [];
 
-        setProfile((prev) => ({
-          ...prev,
-          name: prof?.data?.username ?? prev.name,
-          email: prof?.data?.email ?? prev.email,
-          bio: prof?.data?.bio ?? prev.bio,
-          avatar: prof?.data?.avatar_url || prev.avatar,
-          posts: prof?.data?.posts_count ?? prev.posts ?? 0,
-          followers: stats.followers ?? prev.followers ?? 0,
-          following: stats.following ?? prev.following ?? 0,
-        }));
+        setProfile((prev) => {
+          const avatarFull = rawAvatar
+            ? toAbsUrl(rawAvatar)
+            : prev.avatar || Avatar;
+
+          return {
+            ...prev,
+            name: prof?.data?.username ?? prev.name,
+            email: prof?.data?.email ?? prev.email,
+            bio: prof?.data?.bio ?? prev.bio,
+            avatar: avatarFull,
+            posts: prof?.data?.posts_count ?? prev.posts ?? 0,
+            followers: stats.followers ?? prev.followers ?? 0,
+            following: stats.following ?? prev.following ?? 0,
+          };
+        });
 
         const postRows = Array.isArray(postsRes?.data?.data)
           ? postsRes.data.data

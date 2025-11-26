@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import axios from "axios";
 import { FaArrowLeft } from "react-icons/fa";
 import { AiFillHeart, AiOutlineHeart } from "react-icons/ai";
 import { FiShare2 } from "react-icons/fi";
 import { BsBookmark, BsBookmarkFill } from "react-icons/bs";
-
+import axios from "axios";
 import Sidebar from "./Sidebar";
+import Avatar from "../assets/default.png";
 import "../component/PostDetail.css";
 
 const API_HOST = "http://localhost:8080";
@@ -43,6 +43,10 @@ const PostDetail = () => {
           return;
         }
 
+        const avatarRaw = data.avatar_url || "";
+        const hasRealAvatar = avatarRaw.startsWith("/uploads/");
+        const authorImg = hasRealAvatar ? toAbsUrl(avatarRaw) : Avatar;
+
         const mapped = {
           id: data.post_id,
           title: data.post_title,
@@ -51,7 +55,7 @@ const PostDetail = () => {
           file_url: data.file_url ? toAbsUrl(data.file_url) : null,
           author_name: data.author_name,
           author_id: data.author_id,
-          author_profile: data.author_profile,
+          authorImg,
           like_count: data.like_count,
           is_liked: data.is_liked,
           is_saved: data.is_saved,
@@ -67,7 +71,8 @@ const PostDetail = () => {
         const st = e?.response?.status;
         if (st === 403) setErr("คุณไม่มีสิทธิ์ดูโพสต์นี้");
         else if (st === 404) setErr("ไม่พบโพสต์");
-        else setErr(e?.response?.data?.error || e.message || "โหลดโพสต์ล้มเหลว");
+        else
+          setErr(e?.response?.data?.error || e.message || "โหลดโพสต์ล้มเหลว");
       } finally {
         setLoading(false);
       }
@@ -185,11 +190,13 @@ const PostDetail = () => {
           <div
             className="user-info"
             style={{ cursor: post.author_id ? "pointer" : "default" }}
-            onClick={() => post.author_id && navigate(`/profile/${post.author_id}`)}
+            onClick={() =>
+              post.author_id && navigate(`/profile/${post.author_id}`)
+            }
             title={post.author_id ? "ไปที่โปรไฟล์ผู้เขียน" : undefined}
           >
             <img
-              src={post.author_profile || "/img/default-profile.png"}
+              src={post.authorImg}
               alt="profile"
               className="profile-img"
             />
@@ -211,10 +218,18 @@ const PostDetail = () => {
                   title="pdf"
                 />
               ) : (
-                <img className="pdf-page-img active" src={post.file_url} alt={post.title} />
+                <img
+                  className="pdf-page-img active"
+                  src={post.file_url}
+                  alt={post.title}
+                />
               )
             ) : (
-              <img className="pdf-page-img active" src="/img/no-image.png" alt={post.title} />
+              <img
+                className="pdf-page-img active"
+                src="/img/no-image.png"
+                alt={post.title}
+              />
             )}
           </div>
         </section>
@@ -267,7 +282,9 @@ const PostDetail = () => {
           {post.tags && post.tags.length > 0 && (
             <div className="post-tags">
               {post.tags.map((t, i) => (
-                <span className="tag" key={`${t}-${i}`}>#{t}</span>
+                <span className="tag" key={`${t}-${i}`}>
+                  #{t}
+                </span>
               ))}
             </div>
           )}
