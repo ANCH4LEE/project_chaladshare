@@ -41,7 +41,7 @@ const Profile = () => {
     following: 0,
   });
 
-  // ------------------ โหมดแก้ไข ------------------
+  // โหมดแก้ไข
   const [isEditing, setIsEditing] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarFile, setAvatarFile] = useState(null);
@@ -204,7 +204,7 @@ const Profile = () => {
         let savedRes = { data: [] };
         if (isOwn) {
           try {
-            savedRes = await axios.get("/posts/saved");
+            savedRes = await axios.get("/posts/save");
           } catch {}
         }
 
@@ -219,16 +219,33 @@ const Profile = () => {
                 const isPdf = /\.pdf$/i.test(fileRaw);
 
                 const imgSrc = coverRaw
-                  ? toAbsUrl(coverRaw) // ถ้ามีรูปหน้าปก → ใช้เลย
+                  ? toAbsUrl(coverRaw)
                   : !fileRaw || isPdf
-                  ? "/img/pdf-placeholder.jpg" // ไม่มีรูป + เป็น pdf → placeholder
-                  : toAbsUrl(fileRaw); // มีรูป (เช่น รูปแทนสรุป) → ใช้รูปนั้น
+                  ? "/img/pdf-placeholder.jpg"
+                  : toAbsUrl(fileRaw);
+
+                const rawAuthorAvatar = p.avatar_url || "";
+                const authorImg = rawAuthorAvatar
+                  ? toAbsUrl(rawAuthorAvatar)
+                  : Avatar;
+
+                const authorName =
+                  p.author_name ||
+                  p.username ||
+                  (isOwn && profile.name) ||
+                  "ผู้ใช้";
 
                 return {
                   id: p.post_id,
+                  post: p.post_id,
                   img: imgSrc,
                   isPdf,
+
                   likes: p.like_count ?? 0,
+                  like_count: p.like_count ?? 0,
+                  is_liked: !!p.is_liked,
+                  is_saved: !!p.is_saved,
+
                   title: p.post_title,
                   tags: Array.isArray(p.tags)
                     ? p.tags
@@ -236,9 +253,8 @@ const Profile = () => {
                         .join(" ")
                     : "",
                   authorId: p.author_id ?? p.post_user_id ?? p.user_id,
-                  authorName:
-                    prof?.data?.username || (isOwn ? "ฉัน" : "ผู้ใช้"),
-                  authorImg: avatarForCards,
+                  authorName,
+                  authorImg,
                 };
               })
             : [];
@@ -280,13 +296,32 @@ const Profile = () => {
         setPosts(format(ownerRows));
         setSavedPosts(isOwn ? format(savedRows) : []);
         if (!isOwn) {
-          if (typeof prof?.data?.is_following === "boolean") {
-            setFollowStatus(prof.data.is_following ? "following" : "idle");
+          const rel = prof?.data ?? {};
+
+          // follow
+          if (typeof rel.is_following === "boolean") {
+            setFollowStatus(rel.is_following ? "following" : "idle");
+          } else if (rel.is_following) {
+            // กันกรณี backend ส่ง 0/1 หรือ "true"/"false"
+            setFollowStatus("following");
+          } else {
+            setFollowStatus("idle");
           }
-          if (typeof prof?.data?.is_friend === "boolean") {
-            setFriendStatus(prof.data.is_friend ? "friends" : "idle");
-          } else if (prof?.data?.friend_request_outgoing) {
+
+          // friend
+          if (
+            rel.is_friend === true ||
+            rel.is_friend === 1 ||
+            rel.is_friend === "1"
+          ) {
+            // เป็นเพื่อนแล้ว
+            setFriendStatus("friends");
+          } else if (rel.friend_request_outgoing) {
+            // ยังไม่เป็นเพื่อน แต่เราส่งคำขอไปแล้ว
             setFriendStatus("requested");
+          } else {
+            // ยังไม่ได้ขออะไร
+            setFriendStatus("idle");
           }
         } else {
           setFollowStatus("idle");
@@ -301,6 +336,51 @@ const Profile = () => {
 
     fetchData();
   }, [isOwn, ownerId, targetId]);
+
+  useEffect(() => {
+    // ถ้าเป็นโปรไฟล์ตัวเอง ไม่ต้องเช็ค
+    if (isOwn || !myId || !targetId) return;
+
+    // ถ้ารู้อยู่แล้วว่าเป็นเพื่อน/ส่งคำขอแล้ว ก็ไม่ต้องยิงซ้ำ
+    if (friendStatus !== "idle") return;
+
+    const checkFriendRelation = async () => {
+      try {
+        // 1) เช็คว่าเป็นเพื่อนกันแล้วหรือยัง
+        const friendsRes = await axios.get(`/social/friends/${myId}`, {
+          params: { page: 1, size: 200, search: "" },
+        });
+        const friendItems = friendsRes.data.items || [];
+        const isFriend = friendItems.some(
+          (f) => String(f.user_id) === String(targetId)
+        );
+
+        if (isFriend) {
+          setFriendStatus("friends");
+          return;
+        }
+
+        // 2) ถ้ายังไม่ใช่เพื่อน → เช็ค outgoing requests
+        const outgoingRes = await axios.get("/social/requests/outgoing", {
+          params: { page: 1, size: 50 },
+        });
+        const outgoingItems = outgoingRes.data.items || [];
+        const hasOutgoing = outgoingItems.some(
+          (r) => String(r.addressee_user_id) === String(targetId)
+        );
+
+        if (hasOutgoing) {
+          setFriendStatus("requested");
+        } else {
+          setFriendStatus("idle");
+        }
+      } catch (e) {
+        console.error("checkFriendRelation failed:", e);
+      }
+    };
+
+    checkFriendRelation();
+  }, [isOwn, myId, targetId, friendStatus]);
 
   useEffect(() => {
     if (isOwn === false && activeTab !== "posts") setActiveTab("posts");
@@ -331,7 +411,7 @@ const Profile = () => {
   const onAddFriend = async () => {
     if (isOwn || !targetId || friendStatus !== "idle") return;
     try {
-      await axios.post(`/friend-requests/${targetId}`);
+      await axios.post("/social/requests", { to_user_id: Number(targetId) });
       setFriendStatus("requested");
     } catch (e) {
       console.error(e);

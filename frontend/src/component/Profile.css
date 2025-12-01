@@ -7,7 +7,7 @@
   --sidebar-width: 230px;
 }
 
-/* ===== Layout ===== */
+/* Layout  */
 .profile-page .profile-container {
   display: flex;
   min-height: 100vh;
@@ -19,14 +19,18 @@
   margin-left: var(--sidebar-width);
   padding: 32px 28px;
   background: var(--bg);
+
+  height: 100vh;
+  overflow-y: scroll; 
 }
+
 
 .profile-page .profile-shell {
   max-width: 1100px;
   margin: 0 auto;
 }
 
-/* ===== Header ===== */
+/*  Header */
 .profile-page .profile-header {
   display: flex;
   align-items: center;
@@ -88,7 +92,7 @@
   font-weight: 500;
 }
 
-/* ===== Tabs ===== */
+/* Tabs */
 .profile-page .profile-tabs {
   display: flex;
   justify-content: center;
@@ -135,12 +139,12 @@
   opacity: 0.6;
 }
 
-/* ===== Body / Card ===== */
+/* Body / Card  */
 .profile-page .profile-body {
-  text-align: center;
   background: transparent;
   padding-top: 10px;
 }
+
 .profile-page .profile-msg {
   text-align: center;
   color: var(--text);
@@ -157,7 +161,7 @@
   justify-content: center;
 }
 
-/* ===== Responsive ===== */
+/* Responsive */
 @media (max-width: 768px) {
   .profile-page .profile-content { margin-left: 0; padding: 20px; }
   .profile-page .profile-header {
@@ -168,7 +172,7 @@
   .profile-page .card-list { justify-content: center; }
 }
 
-/* ===== Card (เหมือนหน้า Home) ===== */
+/* Card */
 .profile-page .card {
   width: 350px;
   border: 1px solid #ddd;
@@ -177,8 +181,26 @@
   background: #fff;
   box-shadow: 0px 2px 5px rgba(0,0,0,0.05);
   transition: transform 0.2s ease;
+  position: relative;           
 }
 .profile-page .card:hover { transform: translateY(-5px); }
+
+/* Toast ฟ้า ๆ เหมือนหน้า Home */
+.profile-page .mini-toast {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(124, 220, 255, 0.95);
+  color: #000000;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 15px;
+  pointer-events: none;
+  z-index: 20;
+  animation: cs-fadeInOut 3s ease;
+}
+
 
 .profile-page .card .card-image {
   width: 100%;
@@ -244,7 +266,7 @@
   .profile-page .card { width: 100%; max-width: 350px; }
 }
 
-/* ===== Edit Profile Card (แบบ Figma) ===== */
+/* Edit Profile Card */
 .profile-page .edit-card {
   background: #fff;
   border-radius: 16px;
@@ -310,7 +332,7 @@
 .profile-page .btn-save:hover { filter: brightness(1.05); }
 .profile-page .edit-error { color: #b00020; font-size: 14px; }
 
-/* ---- NEW: แถว “รหัสผ่านปัจจุบัน” + ลิงก์ลืมรหัสผ่าน (ชิดขวา) ---- */
+/* NEW: แถว “รหัสผ่านปัจจุบัน” + ลิงก์ลืมรหัสผ่าน (ชิดขวา) */
 .profile-page .edit-row{
   display: flex;
   align-items: flex-end;           /* ให้ฐานเสมอกับ input */
@@ -389,11 +411,20 @@
 }
 .profile-page .edit-field.flex-1{ flex: 1; }
 
+/* ให้หน้า profile สูงเท่าหน้าจอ และเลื่อนใน content ข้างในแทน */
+.profile-page {
+  height: 100vh;
+  overflow: hidden;          /* ข้างนอกไม่ต้องมี scrollbar */
+}
+
+.profile-page .profile-container {
+  height: 100%;
+}
+
 /* ปรับบนจอเล็ก */
 @media (max-width: 860px){
   .profile-page .pw-input{ height: 38px; }
 }
-
 
 /* Responsive */
 @media (max-width: 860px) {

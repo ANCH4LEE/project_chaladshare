@@ -16,19 +16,29 @@ const toAbsUrl = (p) => {
 };
 
 const Friends = () => {
-  const ownerId = Number(localStorage.getItem("user_id") || 0);
-
-  const [activeTab, setActiveTab] = useState("my"); // 'my'|'add'|'requests'
+  const [ownerId, setOwnerId] = useState(null);
+  const [activeTab, setActiveTab] = useState("my"); 
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const size = 20;
-
   const [friends, setFriends] = useState([]);
   const [totalFriends, setTotalFriends] = useState(0);
   const [loadingFriends, setLoadingFriends] = useState(false);
-
   const [incoming, setIncoming] = useState([]);
   const [loadingReq, setLoadingReq] = useState(false);
+
+  useEffect(() => {
+    const fetchMe = async () => {
+      try {
+        const { data } = await axios.get("/profile");
+        const id = data.user_id || data.id;
+        if (id) setOwnerId(id);
+      } catch (err) {
+        console.error("Fetch profile failed", err);
+      }
+    };
+    fetchMe();
+  }, []);
 
   const fetchFriends = async (q = query, p = page) => {
     if (!ownerId) return;
@@ -61,7 +71,7 @@ const Friends = () => {
   const fetchIncoming = async () => {
     setLoadingReq(true);
     try {
-      const { data } = await axios.get(`/social/friend-requests/incoming`, {
+      const { data } = await axios.get(`/social/requests/incoming`, {
         params: { page: 1, size: 50 },
       });
       setIncoming(data.items || []);
@@ -75,7 +85,7 @@ const Friends = () => {
 
   const acceptRequest = async (requestId) => {
     try {
-      await axios.post(`/social/friend-requests/${requestId}/accept`);
+      await axios.post(`/social/requests/${requestId}/accept`);
       setIncoming((prev) => prev.filter((r) => r.request_id !== requestId));
       fetchFriends(); // รีโหลดเพื่อน
     } catch (e) {
@@ -86,7 +96,7 @@ const Friends = () => {
 
   const declineRequest = async (requestId) => {
     try {
-      await axios.post(`/social/friend-requests/${requestId}/decline`);
+      await axios.post(`/social/requests/${requestId}/decline`);
       setIncoming((prev) => prev.filter((r) => r.request_id !== requestId));
     } catch (e) {
       console.error("decline:", e);
@@ -95,21 +105,26 @@ const Friends = () => {
   };
 
   useEffect(() => {
-    if (activeTab === "my") fetchFriends();
-  }, [activeTab, page]);
+    if (ownerId) {
+      fetchIncoming();
+      if (activeTab === "my") fetchFriends();
+    }
+  }, [ownerId]);
 
   useEffect(() => {
-    if (activeTab !== "my") return;
+    if (!ownerId) return;
+    if (activeTab === "my") fetchFriends();
+    if (activeTab === "requests") fetchIncoming();
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== "my" || !ownerId) return;
     const t = setTimeout(() => {
       setPage(1);
       fetchFriends(query, 1);
     }, 300);
     return () => clearTimeout(t);
   }, [query]);
-
-  useEffect(() => {
-    if (activeTab === "requests") fetchIncoming();
-  }, [activeTab]);
 
   const totalPages = Math.max(1, Math.ceil(totalFriends / size));
 

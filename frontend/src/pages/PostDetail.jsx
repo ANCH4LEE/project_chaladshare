@@ -79,42 +79,54 @@ const PostDetail = () => {
     })();
   }, [id, navigate]);
 
-  // ✅ Optimistic like
+  // Like แบบเดียวกับการ์ด Home (optimistic + ไม่ revert UI)
   const toggleLike = async (e) => {
     e?.preventDefault?.();
     e?.stopPropagation?.();
-    const next = !liked;
-    setLiked(next);
-    setLikes((p) => p + (next ? 1 : -1));
-    try {
-      if (next) await axios.post(`/posts/${id}/like`);
-      else await axios.delete(`/posts/${id}/like`);
-    } catch (error) {
-      // revert เมื่อพลาด
-      setLiked(!next);
-      setLikes((p) => p + (next ? -1 : 1));
-      const st = error?.response?.status;
-      if (st === 403) setErr("ไม่มีสิทธิ์กดไลก์โพสต์นี้");
-      else if (st === 404) setErr("ไม่พบโพสต์");
-      console.error("Like toggle failed:", error);
-    }
-  };
 
-  // ✅ Optimistic save
+    if (!post) return;
+
+  try {
+    const res = await axios.post(
+      `/posts/${id}/like`,
+      {},
+      { withCredentials: true }
+    );
+    const { is_liked, like_count } = res.data.data;
+
+    setLiked(is_liked);
+    setLikes(like_count ?? 0);
+    setPost((prev) =>
+      prev ? { ...prev, is_liked, like_count: like_count ?? 0 } : prev
+    );
+  } catch (error) {
+    console.error("Like toggle failed:", error);
+  }
+};
+
+  // Save แบบเดียวกับ Home (ไอคอนเหลืองเมื่อ active)
   const toggleSave = async (e) => {
     e?.preventDefault?.();
     e?.stopPropagation?.();
-    const next = !saved;
-    setSaved(next);
-    try {
-      if (next) await axios.post(`/posts/${id}/save`);
-      else await axios.delete(`/posts/${id}/save`);
-    } catch (error) {
-      // revert เมื่อพลาด
-      setSaved(!next);
-      console.error("Save toggle failed:", error);
-    }
-  };
+
+    if (!post) return;
+
+  try {
+    const res = await axios.post(
+      `/posts/${id}/save`,
+      {},
+      { withCredentials: true }
+    );
+    const { is_saved, save_count } = res.data.data;
+
+    setSaved(is_saved);
+    setPost((prev) =>
+      prev ? { ...prev, is_saved, save_count: save_count ?? prev.save_count } : prev
+    );
+  } catch (error) {
+    console.error("Save toggle failed:", error);
+  }
+};
 
   const sharePost = async (e) => {
     e?.preventDefault?.();
@@ -195,11 +207,7 @@ const PostDetail = () => {
             }
             title={post.author_id ? "ไปที่โปรไฟล์ผู้เขียน" : undefined}
           >
-            <img
-              src={post.authorImg}
-              alt="profile"
-              className="profile-img"
-            />
+            <img src={post.authorImg} alt="profile" className="profile-img" />
             <div className="user-details">
               <h4>{post.author_name || "ไม่ระบุ"}</h4>
               <p className="status">{visibilityText}</p>
@@ -238,21 +246,34 @@ const PostDetail = () => {
         <section className="post-footer">
           <div
             className="actions-row"
-            onClickCapture={(e) => e.stopPropagation()} // กัน bubble ออกไปนอกแถว
+            onClick={(e) => e.stopPropagation()} // กัน bubble ออกไปนอกแถว
           >
-            {/* ไลก์ (ซ้าย) แบบเดียวกับ Home */}
-            <button
-              type="button"
-              className={`likes-btn ${liked ? "active" : ""}`}
+            {/* ไลก์สไตล์เดียวกับการ์ด Home */}
+            <span
+              className="likes"
               onClick={toggleLike}
-              aria-label="กดไลก์"
+              style={{ cursor: "pointer" }}
             >
-              {liked ? <AiFillHeart /> : <AiOutlineHeart />}
+              {liked ? (
+                <AiFillHeart style={{ color: "red", fontSize: "20px" }} />
+              ) : (
+                <AiOutlineHeart style={{ color: "black", fontSize: "20px" }} />
+              )}
               <span>{likes}</span>
-            </button>
+            </span>
 
-            {/* ปุ่มขวา: แชร์ + บันทึก */}
+            {/* ปุ่มขวา: บันทึก + แชร์ */}
             <div className="action-right">
+              <button
+                type="button"
+                className={`icon-btn ${saved ? "active" : ""}`}
+                onClick={toggleSave}
+                title={saved ? "ยกเลิกบันทึก" : "บันทึก"}
+                aria-label="บันทึก"
+              >
+                {saved ? <BsBookmarkFill /> : <BsBookmark />}
+              </button>
+
               <button
                 type="button"
                 className="icon-btn"
@@ -261,16 +282,6 @@ const PostDetail = () => {
                 aria-label="แชร์"
               >
                 <FiShare2 />
-              </button>
-
-              <button
-                type="button"
-                className={`icon-btn ${saved ? "active" : ""}`}
-                onClick={toggleSave}
-                title="บันทึก"
-                aria-label="บันทึก"
-              >
-                {saved ? <BsBookmarkFill /> : <BsBookmark />}
               </button>
             </div>
           </div>

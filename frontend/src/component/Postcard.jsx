@@ -2,30 +2,61 @@ import React, { useState } from "react";
 import { AiFillHeart, AiOutlineHeart } from "react-icons/ai";
 import { BsBookmark, BsBookmarkFill } from "react-icons/bs";
 import { FiShare2 } from "react-icons/fi";
+import axios from "axios";
 
-const PostCard = ({ post }) => {
-  const [liked, setLiked] = useState(false);
-  const [likes, setLikes] = useState(post.likes);
-  const [saved, setSaved] = useState(false);
+
+const PostCard = ({ post, onToggleSave }) => {
+  const postId = post.id ?? post.post_id;
+  const [liked, setLiked] = useState(!!post.is_liked);
+  const [likes, setLikes] = useState(typeof post.like_count === "number" ? post.like_count : (post.likes || 0));
+  const [saved, setSaved] = useState(!!post.is_saved);
   const [toast, setToast] = useState("");
 
-  const toggleLike = (e) => {
+  const toggleLike = async (e) => {
     e.stopPropagation();
-    setLikes((n) => (liked ? n - 1 : n + 1));
-    setLiked((v) => !v);
+     try {
+      const res = await axios.post(
+        `posts/${postId}/like`,
+        {},
+        { withCredentials: true }
+      );
+      const { is_liked, like_count } = res.data.data;
+
+      setLiked(is_liked);
+      setLikes(like_count);
+    } catch (err) {
+      console.error("toggle like error:", err);
+      setToast("⚠️ กดถูกใจไม่สำเร็จ");
+      setTimeout(() => setToast(""), 2500);
+    }
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.stopPropagation();
-    const next = !saved;
-    setSaved(next);
-    setToast(next ? "✔️ รายการที่บันทึก" : "❌ ยกเลิกการบันทึก");
-    setTimeout(() => setToast(""), 2500);
+    try {
+      const res = await axios.post(
+        `posts/${postId}/save`,
+        {},
+        { withCredentials: true }
+      );
+      const { is_saved, save_count } = res.data.data;
+
+      setSaved(is_saved);
+      setToast(is_saved ? "✔️ บันทึกรายการแล้ว" : "❌ ยกเลิกการบันทึก");
+      setTimeout(() => setToast(""), 2500);
+      if (onToggleSave) {
+        onToggleSave(is_saved, save_count);
+      }
+    } catch (err) {
+      console.error("toggle save error:", err);
+      setToast("⚠️ บันทึกโพสต์ไม่สำเร็จ");
+      setTimeout(() => setToast(""), 2500);
+    }
   };
 
   const sharePost = async (e) => {
     e.stopPropagation();
-    const url = window.location.origin + "/post/" + encodeURIComponent(post.title);
+    const url = window.location.origin + "/post/" + encodeURIComponent(post.post_id);
     try {
       if (navigator.share) {
         await navigator.share({ title: post.title, text: "ดูสรุปนี้บน ChaladShare", url });

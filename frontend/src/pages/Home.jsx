@@ -95,11 +95,15 @@ const Home = () => {
 
           return {
             id: p.post_id,
+            post_id: p.post_id,
             img: coverImg,
             isPdf,
             document_url: isPdf ? toAbsUrl(rawUrl) : null,
             documentId: p.post_document_id,
-            likes: p.like_count ?? 0,
+            likes: p.like_count ?? 0,     
+            like_count: p.like_count ?? 0,
+            is_liked: !!p.is_liked,
+            is_saved: !!p.is_saved,
             title: p.post_title,
             tags: Array.isArray(p.tags)
               ? p.tags.map((t) => (t.startsWith("#") ? t : `#${t}`)).join(" ")
