@@ -194,7 +194,7 @@ func (h *FriendHandler) GetStats(c *gin.Context) {
 	})
 }
 
-// =================== Friend Requests ==================
+// Friend Requests
 
 func (h *FriendHandler) SendFriendRequest(c *gin.Context) {
 	actorID, ok := getUID(c)

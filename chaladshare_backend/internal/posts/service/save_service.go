@@ -3,8 +3,7 @@ package service
 import "chaladshare_backend/internal/posts/repository"
 
 type SaveService interface {
-	SavePost(userID, postID int) error
-	UnsavePost(userID, postID int) error
+	ToggleSave(userID, postID int) (isSaved bool, saveCount int, err error)
 	IsPostSaved(userID, postID int) (bool, error)
 }
 
@@ -16,14 +15,34 @@ func NewSaveService(saveRepo repository.SaveRepository) SaveService {
 	return &saveService{saveRepo: saveRepo}
 }
 
-// บันทึกโพสต์
-func (s *saveService) SavePost(userID, postID int) error {
-	return s.saveRepo.SavePost(userID, postID)
-}
+func (s *saveService) ToggleSave(userID, postID int) (bool, int, error) {
+	// 1) เช็กก่อนว่า user นี้เคยบันทึกโพสต์นี้หรือยัง
+	saved, err := s.saveRepo.IsPostSaved(userID, postID)
+	if err != nil {
+		return false, 0, err
+	}
 
-//ยกเลิกการบันทึก
-func (s *saveService) UnsavePost(userID, postID int) error {
-	return s.saveRepo.UnsavePost(userID, postID)
+	// 2) ถ้าเคย save แล้ว → กดอีกที = unsave
+	if saved {
+		if err := s.saveRepo.UnsavePost(userID, postID); err != nil {
+			return false, 0, err
+		}
+		saved = false
+	} else {
+		// ถ้ายังไม่เคย save → save ใหม่
+		if err := s.saveRepo.SavePost(userID, postID); err != nil {
+			return false, 0, err
+		}
+		saved = true
+	}
+
+	// 3) ดึงจำนวนบันทึกล่าสุด
+	count, err := s.saveRepo.SaveCount(postID)
+	if err != nil {
+		return false, 0, err
+	}
+
+	return saved, count, nil
 }
 
 //ตรวจสอบ

@@ -50,6 +50,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
+	log.Printf("CORS AllowOrigin = %q\n", cfg.AllowOrigin)
 
 	//connet DB
 	db, err := connectdb.NewPostgresDatabase(cfg.GetConnectionString())
@@ -68,10 +69,17 @@ func main() {
 	fileService := FileService.NewFileService(fileRepository)
 	fileHandler := FileHandler.NewFileHandler(fileService)
 
-	//post repo service handler
+	//post like save  repo service handler
 	postRepository := PostRepo.NewPostRepository(db.GetDB())
 	postService := PostService.NewPostService(postRepository)
-	postHandler := PostHandler.NewPostHandler(postService)
+
+	likeRepository := PostRepo.NewLikeRepository(db.GetDB())
+	likeService := PostService.NewLikeService(likeRepository)
+
+	saveRepository := PostRepo.NewSaveRepository(db.GetDB())
+	saveService := PostService.NewSaveService(saveRepository)
+
+	postHandler := PostHandler.NewPostHandler(postService, likeService, saveService)
 
 	friendsRepo := FriendsRepo.NewFriendRepository(db.GetDB())
 	friendsService := FriendsService.NewFriendService(friendsRepo)
@@ -137,7 +145,7 @@ func main() {
 		authRoutes.GET("/users/:id", authHandler.GetUserByID)
 	}
 
-	// --- Protected (ต้องมี JWT) ---
+	// Protected (ต้องมี JWT)
 	protected := v1.Group("/")
 	protected.Use(middleware.JWT([]byte(cfg.JWTSecret), cfg.CookieName))
 	{
@@ -150,6 +158,10 @@ func main() {
 			posts.POST("", postHandler.CreatePost)
 			posts.PUT("/:id", postHandler.UpdatePost)
 			posts.DELETE("/:id", postHandler.DeletePost)
+
+			posts.POST("/:id/like", postHandler.ToggleLike)
+			posts.POST("/:id/save", postHandler.ToggleSave)
+			posts.GET("/save", postHandler.GetSavedPosts)
 		}
 
 		// Files

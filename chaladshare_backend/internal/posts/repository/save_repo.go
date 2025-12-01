@@ -10,6 +10,7 @@ type SaveRepository interface {
 	UnsavePost(userID, postID int) error
 	IsPostSaved(userID, postID int) (bool, error)
 	UpdateSaveCount(postID int) error
+	SaveCount(postID int) (int, error)
 }
 
 type saveRepository struct {
@@ -44,28 +45,43 @@ func (r *saveRepository) UnsavePost(userID, postID int) error {
 
 // ตรวจสอบว่าเคยถูกบันทึกหรือยัง
 func (r *saveRepository) IsPostSaved(userID, postID int) (bool, error) {
-	query := `SELECT 1 FROM saved_posts WHERE save_user_id=$1 AND save_post_id=$2`
-	var exists int
-	err := r.db.QueryRow(query, userID, postID).Scan(&exists)
-	if err == sql.ErrNoRows {
-		return false, nil
-	}
-	if err != nil {
+	query := `
+		SELECT EXISTS(
+			SELECT 1 FROM saved_posts
+			WHERE save_user_id=$1 AND save_post_id=$2
+		)
+	`
+	var saved bool
+	if err := r.db.QueryRow(query, userID, postID).Scan(&saved); err != nil {
 		return false, err
 	}
-	return true, nil
+	return saved, nil
 }
 
 // อัปเดตจำนวนบันทึกใน post_stat
 func (r *saveRepository) UpdateSaveCount(postID int) error {
 	query := `
-		UPDATE post_stats
-		SET post_save_count = (
-			SELECT COUNT(*) FROM saved_posts WHERE save_post_id=$1
-		),
-		post_last_activity_at = NOW()
-		WHERE post_stats_post_id=$1;
+		INSERT INTO post_stats (post_stats_post_id, post_save_count, post_last_activity_at)
+		VALUES (
+			$1,
+			(SELECT COUNT(*) FROM saved_posts WHERE save_post_id = $1),
+			NOW()
+		)
+		ON CONFLICT (post_stats_post_id)
+		DO UPDATE SET
+			post_save_count       = EXCLUDED.post_save_count,
+			post_last_activity_at = EXCLUDED.post_last_activity_at;
 	`
 	_, err := r.db.Exec(query, postID)
 	return err
+}
+
+// จำนวน save โพสต์
+func (r *saveRepository) SaveCount(postID int) (int, error) {
+	query := `SELECT COUNT(*) FROM saved_posts WHERE save_post_id = $1`
+	var count int
+	if err := r.db.QueryRow(query, postID).Scan(&count); err != nil {
+		return 0, fmt.Errorf("failed to get save count: %v", err)
+	}
+	return count, nil
 }

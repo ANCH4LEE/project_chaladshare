@@ -20,6 +20,8 @@ type PostService interface {
 	IsOwner(postID int, userID int) (bool, error)
 	ViewPost(viewerID, postID int) (bool, string, error)
 	Friends(viewerID, authorID int) (bool, error)
+
+	GetSavedPosts(userID int) ([]models.PostResponse, error)
 }
 
 type postService struct {
@@ -171,4 +173,8 @@ func (s *postService) ViewPost(viewerID, postID int) (bool, string, error) {
 
 func (s *postService) Friends(viewerID, authorID int) (bool, error) {
 	return false, nil
+}
+
+func (s *postService) GetSavedPosts(userID int) ([]models.PostResponse, error) {
+	return s.postRepo.GetSavedPosts(userID)
 }

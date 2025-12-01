@@ -16,8 +16,11 @@ type PostRepository interface {
 
 	GetAllPosts() ([]models.PostResponse, error)
 	GetPostByID(postID int) (*models.PostResponse, error)
+	GetFeedPosts(viewerID int) ([]models.PostResponse, error)
 	GetPostOwnerID(postID int) (int, error)
 	CountByUserID(userID int) (int, error)
+
+	GetSavedPosts(userID int) ([]models.PostResponse, error)
 }
 
 type postRepository struct {
@@ -199,22 +202,100 @@ func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 		)
 
 		if err := rows.Scan(
-			&p.PostID,
-			&p.AuthorID,
-			&p.AuthorName,
-			&p.Title,
-			&p.Description,
-			&p.Visibility,
-			&docID,
-			&sumID,
-			&p.CreatedAt,
-			&p.UpdatedAt,
-			&p.LikeCount,
-			&p.SaveCount,
-			&fileURL,
-			&coverURL,
-			&avatarURL,
-			&tags,
+			&p.PostID, &p.AuthorID, &p.AuthorName,
+			&p.Title, &p.Description, &p.Visibility,
+			&docID, &sumID, &p.CreatedAt, &p.UpdatedAt,
+			&p.LikeCount, &p.SaveCount,
+			&fileURL, &coverURL, &avatarURL, &tags,
+		); err != nil {
+			return nil, err
+		}
+
+		if docID.Valid {
+			v := int(docID.Int64)
+			p.DocumentID = &v
+		}
+		if sumID.Valid {
+			v := int(sumID.Int64)
+			p.SummaryID = &v
+		}
+		if fileURL.Valid {
+			p.FileURL = &fileURL.String
+		}
+		if coverURL.Valid {
+			p.CoverURL = &coverURL.String
+		}
+		if avatarURL.Valid {
+			p.AvatarURL = &avatarURL.String
+		}
+
+		p.Tags = []string(tags)
+		posts = append(posts, p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return posts, nil
+}
+
+func (r *postRepository) GetFeedPosts(viewerID int) ([]models.PostResponse, error) {
+	query := `
+		SELECT p.post_id, p.post_author_user_id, u.username AS author_name,
+			p.post_title, p.post_description, p.post_visibility,
+			p.post_document_id, p.post_summary_id, p.post_created_at, p.post_updated_at,
+			COALESCE(ps.post_like_count, 0) AS post_like_count,
+			COALESCE(ps.post_save_count, 0) AS post_save_count,
+			d.document_url AS document_file_url,
+			p.post_cover_url, up.avatar_url,
+			ARRAY_REMOVE(ARRAY_AGG(DISTINCT t.tag_name), NULL) AS tags
+		FROM posts p
+		JOIN users u ON u.user_id = p.post_author_user_id
+		LEFT JOIN post_stats ps ON ps.post_stats_post_id = p.post_id
+		LEFT JOIN post_tags pt ON pt.post_tag_post_id = p.post_id
+		LEFT JOIN tags t ON t.tag_id = pt.post_tag_tag_id
+		LEFT JOIN documents d ON d.document_id = p.post_document_id
+		LEFT JOIN user_profiles up ON up.profile_user_id = u.user_id
+		WHERE
+			p.post_author_user_id = $1
+			OR p.post_visibility = 'public'
+			OR ( p.post_visibility = 'friends'
+				AND EXISTS (
+					SELECT 1
+					FROM friendships f
+					WHERE
+						f.user_id  = LEAST(p.post_author_user_id, $1)
+						AND f.friend_id = GREATEST(p.post_author_user_id, $1)
+				)
+			)
+		GROUP BY p.post_id, u.username, ps.post_like_count, ps.post_save_count,
+				 d.document_url, p.post_cover_url, up.avatar_url
+		ORDER BY p.post_created_at DESC;
+	`
+
+	rows, err := r.db.Query(query, viewerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []models.PostResponse
+	for rows.Next() {
+		var (
+			p         models.PostResponse
+			tags      pq.StringArray
+			fileURL   sql.NullString
+			coverURL  sql.NullString
+			avatarURL sql.NullString
+			docID     sql.NullInt64
+			sumID     sql.NullInt64
+		)
+		if err := rows.Scan(
+			&p.PostID, &p.AuthorID, &p.AuthorName,
+			&p.Title, &p.Description, &p.Visibility,
+			&docID, &sumID, &p.CreatedAt, &p.UpdatedAt,
+			&p.LikeCount, &p.SaveCount,
+			&fileURL, &coverURL, &avatarURL, &tags,
 		); err != nil {
 			return nil, err
 		}
@@ -278,29 +359,17 @@ func (r *postRepository) GetPostByID(postID int) (*models.PostResponse, error) {
 	)
 
 	if err := row.Scan(
-		&p.PostID,
-		&p.AuthorID,
-		&p.AuthorName,
-		&p.Title,
-		&p.Description,
-		&p.Visibility,
-		&docID,
-		&sumID,
-		&p.CreatedAt,
-		&p.UpdatedAt,
-		&p.LikeCount,
-		&p.SaveCount,
-		&fileURL,
-		&coverURL,
-		&avatarURL,
-		&tags,
+		&p.PostID, &p.AuthorID, &p.AuthorName,
+		&p.Title, &p.Description, &p.Visibility,
+		&docID, &sumID, &p.CreatedAt, &p.UpdatedAt,
+		&p.LikeCount, &p.SaveCount,
+		&fileURL, &coverURL, &avatarURL, &tags,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, sql.ErrNoRows
 		}
 		return nil, err
 	}
-
 	if docID.Valid {
 		v := int(docID.Int64)
 		p.DocumentID = &v
@@ -336,4 +405,96 @@ func (r *postRepository) CountByUserID(userID int) (int, error) {
 	var cnt int
 	err := r.db.QueryRow(`SELECT COUNT(*) FROM posts WHERE post_author_user_id = $1`, userID).Scan(&cnt)
 	return cnt, err
+}
+
+func (r *postRepository) GetSavedPosts(userID int) ([]models.PostResponse, error) {
+	query := `
+        SELECT p.post_id, p.post_author_user_id, u.username AS author_name,
+               p.post_title, p.post_description, p.post_visibility,
+               p.post_document_id, p.post_summary_id,
+               p.post_created_at, p.post_updated_at,
+               COALESCE(ps.post_like_count, 0) AS post_like_count,
+               COALESCE(ps.post_save_count, 0) AS post_save_count,
+               d.document_url AS document_file_url,
+               p.post_cover_url, up.avatar_url,
+               ARRAY_REMOVE(ARRAY_AGG(DISTINCT t.tag_name), NULL) AS tags
+        FROM saved_posts sp
+        JOIN posts p ON p.post_id = sp.save_post_id
+        JOIN users u ON u.user_id = p.post_author_user_id
+        LEFT JOIN post_stats ps ON ps.post_stats_post_id = p.post_id
+        LEFT JOIN post_tags pt ON pt.post_tag_post_id = p.post_id
+        LEFT JOIN tags t ON t.tag_id = pt.post_tag_tag_id
+        LEFT JOIN documents d ON d.document_id = p.post_document_id
+        LEFT JOIN user_profiles up ON up.profile_user_id = u.user_id
+        WHERE sp.save_user_id = $1
+          AND (
+              p.post_author_user_id = $1
+              OR p.post_visibility = 'public'
+              OR ( p.post_visibility = 'friends'
+                AND EXISTS (
+                    SELECT 1
+                    FROM friendships f
+                    WHERE
+                        f.user_id  = LEAST(p.post_author_user_id, $1)
+                        AND f.friend_id = GREATEST(p.post_author_user_id, $1)
+                )
+              )
+          )
+        GROUP BY p.post_id, u.username, ps.post_like_count, ps.post_save_count,
+                 d.document_url, p.post_cover_url, up.avatar_url
+        ORDER BY p.post_created_at DESC;
+    `
+	rows, err := r.db.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []models.PostResponse
+	for rows.Next() {
+		var (
+			p         models.PostResponse
+			tags      pq.StringArray
+			fileURL   sql.NullString
+			coverURL  sql.NullString
+			avatarURL sql.NullString
+			docID     sql.NullInt64
+			sumID     sql.NullInt64
+		)
+
+		if err := rows.Scan(
+			&p.PostID, &p.AuthorID, &p.AuthorName,
+			&p.Title, &p.Description, &p.Visibility,
+			&docID, &sumID, &p.CreatedAt, &p.UpdatedAt,
+			&p.LikeCount, &p.SaveCount,
+			&fileURL, &coverURL, &avatarURL, &tags,
+		); err != nil {
+			return nil, err
+		}
+		if docID.Valid {
+			v := int(docID.Int64)
+			p.DocumentID = &v
+		}
+		if sumID.Valid {
+			v := int(sumID.Int64)
+			p.SummaryID = &v
+		}
+		if fileURL.Valid {
+			p.FileURL = &fileURL.String
+		}
+		if coverURL.Valid {
+			p.CoverURL = &coverURL.String
+		}
+		if avatarURL.Valid {
+			p.AvatarURL = &avatarURL.String
+		}
+
+		p.Tags = []string(tags)
+		posts = append(posts, p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return posts, nil
 }

@@ -84,9 +84,9 @@ func (r *friendrepo) ListFriends(ctx context.Context, viewerID, userID int, sear
 	  u.username                             AS username,
 	  COALESCE(p.avatar_url,'')              AS avatar,
 	  EXISTS (SELECT 1 FROM friendships fs
-	          WHERE fs.user_id=LEAST($1,u.user_id) AND fs.friend_id=GREATEST($1,u.user_id)) AS is_friend,
+	          WHERE fs.user_id=LEAST($1::int, u.user_id) AND fs.friend_id=GREATEST($1::int, u.user_id)) AS is_friend,
 	  EXISTS (SELECT 1 FROM follows f2
-	          WHERE f2.follower_user_id=$1 AND f2.followed_user_id=u.user_id)              AS is_following
+	          WHERE f2.follower_user_id=$1 AND f2.followed_user_id=u.user_id) AS is_following
 	FROM my_friends mf
 	JOIN users u ON u.user_id = mf.friend_id
 	LEFT JOIN user_profiles p ON p.profile_user_id = u.user_id
@@ -118,9 +118,9 @@ func (r *friendrepo) ListFollowers(ctx context.Context, viewerID, userID int, se
 	  u.username                            AS username,
 	  COALESCE(p.avatar_url,'')             AS avatar,
 	  EXISTS (SELECT 1 FROM friendships fs
-	          WHERE fs.user_id=LEAST($1,u.user_id) AND fs.friend_id=GREATEST($1,u.user_id)) AS is_friend,
+	          WHERE fs.user_id=LEAST($1::int, u.user_id) AND fs.friend_id=GREATEST($1::int, u.user_id)) AS is_friend,
 	  EXISTS (SELECT 1 FROM follows f2
-	          WHERE f2.follower_user_id=$1 AND f2.followed_user_id=u.user_id)              AS is_following
+	          WHERE f2.follower_user_id=$1 AND f2.followed_user_id=u.user_id) AS is_following
 	FROM follows f
 	JOIN users u ON u.user_id = f.follower_user_id
 	LEFT JOIN user_profiles p ON p.profile_user_id = u.user_id
@@ -153,9 +153,9 @@ func (r *friendrepo) ListFollowing(ctx context.Context, viewerID, userID int, se
 	  u.username                            AS username,
 	  COALESCE(p.avatar_url,'')             AS avatar,
 	  EXISTS (SELECT 1 FROM friendships fs
-	          WHERE fs.user_id=LEAST($1,u.user_id) AND fs.friend_id=GREATEST($1,u.user_id)) AS is_friend,
+	          WHERE fs.user_id=LEAST($1::int, u.user_id) AND fs.friend_id=GREATEST($1::int, u.user_id)) AS is_friend,
 	  EXISTS (SELECT 1 FROM follows f2
-	          WHERE f2.follower_user_id=$1 AND f2.followed_user_id=u.user_id)              AS is_following
+	          WHERE f2.follower_user_id=$1 AND f2.followed_user_id=u.user_id) AS is_following
 	FROM follows f
 	JOIN users u ON u.user_id = f.followed_user_id
 	LEFT JOIN user_profiles p ON p.profile_user_id = u.user_id
@@ -239,10 +239,12 @@ func (r *friendrepo) GetPendingBetween(ctx context.Context, aID, bID int) (bool,
 	err := r.db.QueryRowContext(ctx, `
 		SELECT 1
 		FROM friend_requests
-		WHERE LEAST(requester_user_id, addressee_user_id) = LEAST($1,$2)
-		  AND GREATEST(requester_user_id, addressee_user_id) = GREATEST($1,$2)
-		  AND request_status='pending'
-		LIMIT 1
+		WHERE (
+          (requester_user_id = $1 AND addressee_user_id = $2) OR
+          (requester_user_id = $2 AND addressee_user_id = $1)
+        )
+        AND request_status = 'pending'::friend_request_status
+        LIMIT 1
 	`, aID, bID).Scan(&x)
 	if err == sql.ErrNoRows {
 		return false, nil
@@ -253,16 +255,17 @@ func (r *friendrepo) GetPendingBetween(ctx context.Context, aID, bID int) (bool,
 func (r *friendrepo) ListIncomingRequests(ctx context.Context, addresseeID int, limit, offset int) ([]models.IncomingReqItem, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		 SELECT fr.request_id,
-        fr.requester_user_id,
-        fr.request_created_at AS requested_at,
-        u.username,
-        COALESCE(p.avatar_url,'') AS avatar 
-		FROM friend_requests fr 
-		JOIN users u ON u.user_id = fr.requester_user_id 
-		LEFT JOIN user_profiles p ON p.profile_user_id = u.user_id 
-		WHERE fr.addressee_user_id=$1 AND fr.request_status='pending'
-		ORDER BY request_created_at DESC
-		LIMIT $2 OFFSET $3
+               fr.requester_user_id,
+               fr.request_created_at AS requested_at,
+               u.username,
+               COALESCE(p.avatar_url,'') AS avatar
+        FROM friend_requests fr
+        JOIN users u ON u.user_id = fr.requester_user_id
+        LEFT JOIN user_profiles p ON p.profile_user_id = u.user_id
+        WHERE fr.addressee_user_id = $1
+          AND fr.request_status = 'pending'::friend_request_status
+        ORDER BY fr.request_created_at DESC
+        LIMIT $2 OFFSET $3
 	`, addresseeID, limit, offset)
 	if err != nil {
 		return nil, err
@@ -282,18 +285,18 @@ func (r *friendrepo) ListIncomingRequests(ctx context.Context, addresseeID int, 
 
 func (r *friendrepo) ListOutgoingRequests(ctx context.Context, requesterID int, limit, offset int) ([]models.OutgoingReqItem, error) {
 	rows, err := r.db.QueryContext(ctx, `
-  SELECT
-    fr.request_id,
-    fr.addressee_user_id      AS target_user_id,
-    fr.request_created_at     AS requested_at,
-    u.username,
-    COALESCE(p.avatar_url,'') AS avatar
-  FROM friend_requests fr
-  JOIN users u ON u.user_id = fr.addressee_user_id
-  LEFT JOIN user_profiles p ON p.profile_user_id = u.user_id
-  WHERE fr.requester_user_id=$1 AND fr.request_status='pending'
-  ORDER BY fr.request_created_at DESC
-  LIMIT $2 OFFSET $3
+  SELECT fr.request_id,
+               fr.addressee_user_id      AS target_user_id,
+               fr.request_created_at     AS requested_at,
+               u.username,
+               COALESCE(p.avatar_url,'') AS avatar
+        FROM friend_requests fr
+        JOIN users u ON u.user_id = fr.addressee_user_id
+        LEFT JOIN user_profiles p ON p.profile_user_id = u.user_id
+        WHERE fr.requester_user_id = $1
+          AND fr.request_status = 'pending'::friend_request_status
+        ORDER BY fr.request_created_at DESC
+        LIMIT $2 OFFSET $3
 `, requesterID, limit, offset)
 	if err != nil {
 		return nil, err
@@ -325,8 +328,11 @@ func (r *friendrepo) AcceptFriendRequest(ctx context.Context, requestID int, add
 	// 1) mark accepted (ต้องเป็นผู้รับ และยัง pending)
 	res, err := tx.ExecContext(ctx, `
 		UPDATE friend_requests
-		SET request_status='accepted', decided_at=now()
-		WHERE request_id=$1 AND addressee_user_id=$2 AND request_status='pending'
+		SET request_status='accepted'::friend_request_status,
+		 	decided_at=now()
+		WHERE request_id=$1 
+			AND addressee_user_id=$2 
+			AND request_status='pending'::friend_request_status
 	`, requestID, addresseeID)
 	if err != nil {
 		return err
@@ -344,7 +350,7 @@ func (r *friendrepo) AcceptFriendRequest(ctx context.Context, requestID int, add
 
 	if _, err = tx.ExecContext(ctx, `
 		INSERT INTO friendships (user_id, friend_id)
-		VALUES (LEAST($1,$2), GREATEST($1,$2))
+		VALUES (LEAST($1::int, $2::int), GREATEST($1::int, $2::int))
 		ON CONFLICT DO NOTHING
 	`, addresseeID, requesterID); err != nil {
 		return err
@@ -369,8 +375,11 @@ func (r *friendrepo) AcceptFriendRequest(ctx context.Context, requestID int, add
 func (r *friendrepo) DeclineFriendRequest(ctx context.Context, requestID int, addresseeID int) error {
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE friend_requests
-		SET request_status='declined', decided_at=now()
-		WHERE request_id=$1 AND addressee_user_id=$2 AND request_status='pending'
+		SET request_status='declined'::friend_request_status,
+			decided_at=now()
+		WHERE request_id=$1 
+			AND addressee_user_id=$2 
+			AND request_status='pending'::friend_request_status
 	`, requestID, addresseeID)
 	return err
 }
@@ -378,7 +387,9 @@ func (r *friendrepo) DeclineFriendRequest(ctx context.Context, requestID int, ad
 func (r *friendrepo) CancelFriendRequest(ctx context.Context, requestID int, requesterID int) error {
 	_, err := r.db.ExecContext(ctx, `
 		DELETE FROM friend_requests
-		WHERE request_id=$1 AND requester_user_id=$2 AND request_status='pending'
+		WHERE request_id=$1 
+		AND requester_user_id=$2 
+		AND request_status='pending'::friend_request_status
 	`, requestID, requesterID)
 	return err
 }
@@ -401,7 +412,7 @@ func (r *friendrepo) Unfriend(ctx context.Context, aID, bID int) (err error) {
 
 	if _, err = tx.ExecContext(ctx, `
 		DELETE FROM friendships
-		WHERE user_id=LEAST($1,$2) AND friend_id=GREATEST($1,$2)
+		WHERE user_id=LEAST($1::int, $2::int) AND friend_id=GREATEST($1::int, $2::int)
 	`, aID, bID); err != nil {
 		return err
 	}
@@ -421,7 +432,7 @@ func (r *friendrepo) AreFriends(ctx context.Context, aID, bID int) (bool, error)
 	var x int
 	err := r.db.QueryRowContext(ctx, `
 		SELECT 1 FROM friendships
-		WHERE user_id=LEAST($1,$2) AND friend_id=GREATEST($1,$2)
+		WHERE user_id=LEAST($1::int, $2::int) AND friend_id=GREATEST($1::int, $2::int)
 	`, aID, bID).Scan(&x)
 	if err == sql.ErrNoRows {
 		return false, nil
