@@ -20,6 +20,8 @@ type FriendService interface {
 	UnfollowUser(ctx context.Context, actorID, targetID int) error
 	IsFollowing(ctx context.Context, actorID, targetID int) (bool, error)
 
+	AreFriends(ctx context.Context, aID, bID int) (bool, error)
+
 	// Lists (มี guard และ pagination ใน service) =====
 	ListFriends(ctx context.Context, viewerID, userID int, search string, page, size int) ([]models.FriendItem, int, error)
 	ListFollowers(ctx context.Context, viewerID, userID int, search string, page, size int) ([]models.FollowUser, int, error) // owner-only
@@ -86,6 +88,13 @@ func (s *friendsService) IsFollowing(ctx context.Context, actorID, targetID int)
 		return false, ErrBadRequest
 	}
 	return s.friendsrepo.Following(ctx, actorID, targetID)
+}
+
+func (s *friendsService) AreFriends(ctx context.Context, aID, bID int) (bool, error) {
+	if aID == 0 || bID == 0 {
+		return false, ErrBadRequest
+	}
+	return s.friendsrepo.AreFriends(ctx, aID, bID)
 }
 
 func (s *friendsService) ListFriends(ctx context.Context, viewerID, userID int, search string, page, size int) ([]models.FriendItem, int, error) {

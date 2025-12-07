@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"chaladshare_backend/internal/posts/models"
 	"chaladshare_backend/internal/posts/service"
@@ -45,7 +46,7 @@ func (h *PostHandler) CreatePost(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
-	if req.Visibility != models.VisibilityPublic {
+	if req.Visibility != models.VisibilityPublic && req.Visibility != models.VisibilityFriends {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported visibility"})
 		return
 	}
@@ -71,7 +72,13 @@ func (h *PostHandler) CreatePost(c *gin.Context) {
 
 // ดึงโพสต์ทั้งหมด (ต้องล็อกอิน)
 func (h *PostHandler) GetAllPosts(c *gin.Context) {
-	posts, err := h.postService.GetAllPosts()
+	uid := c.GetInt("user_id")
+	if uid == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	posts, err := h.postService.GetFeedPosts(uid)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -81,11 +88,35 @@ func (h *PostHandler) GetAllPosts(c *gin.Context) {
 
 // รายละเอียดโพสต์ (ต้องล็อกอิน)
 func (h *PostHandler) GetPostByID(c *gin.Context) {
+	uid := c.GetInt("user_id")
+	if uid == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil || id <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
+
+	ok, reason, err := h.postService.ViewPost(uid, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if !ok {
+		switch reason {
+		case "not_found":
+			c.JSON(http.StatusNotFound, gin.H{"error": "post not found"})
+		case "friends_only", "denied":
+			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		default:
+			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+		}
+		return
+	}
+
 	post, err := h.postService.GetPostByID(id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -110,7 +141,7 @@ func (h *PostHandler) UpdatePost(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	// เช็คสิทธิ์เจ้าของก่อน
+
 	isOwner, err := h.postService.IsOwner(postID, uid)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -124,23 +155,28 @@ func (h *PostHandler) UpdatePost(c *gin.Context) {
 	var req struct {
 		Title       string   `json:"post_title"`
 		Description string   `json:"post_description"`
-		Visibility  string   `json:"post_visibility"`
+		Visibility  *string  `json:"post_visibility"`
 		Tags        []string `json:"tags"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
-	if req.Visibility != models.VisibilityPublic {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported visibility"})
-		return
+	vis := ""
+	if req.Visibility != nil {
+		v := strings.ToLower(strings.TrimSpace(*req.Visibility))
+		if v != models.VisibilityPublic && v != models.VisibilityFriends && v != "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported visibility"})
+			return
+		}
+		vis = v
 	}
 
 	post := &models.Post{
 		PostID:      postID,
 		Title:       req.Title,
 		Description: req.Description,
-		Visibility:  req.Visibility,
+		Visibility:  vis,
 	}
 	if err := h.postService.UpdatePost(post, req.Tags); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

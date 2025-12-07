@@ -64,6 +64,10 @@ func main() {
 	authService := AuthService.NewAuthService(authRepository, []byte(cfg.JWTSecret), cfg.TokenTTLMinutes)
 	authHandler := AuthHandler.NewAuthHandler(authService, cfg.CookieName, false)
 
+	friendsRepo := FriendsRepo.NewFriendRepository(db.GetDB())
+	friendsService := FriendsService.NewFriendService(friendsRepo)
+	friendsHandler := FriendsHandler.NewFriendHandler(friendsService)
+
 	//file repo service handler
 	fileRepository := FileRepo.NewFileRepository(db.GetDB())
 	fileService := FileService.NewFileService(fileRepository)
@@ -71,7 +75,7 @@ func main() {
 
 	//post like save  repo service handler
 	postRepository := PostRepo.NewPostRepository(db.GetDB())
-	postService := PostService.NewPostService(postRepository)
+	postService := PostService.NewPostService(postRepository, friendsService)
 
 	likeRepository := PostRepo.NewLikeRepository(db.GetDB())
 	likeService := PostService.NewLikeService(likeRepository)
@@ -80,10 +84,6 @@ func main() {
 	saveService := PostService.NewSaveService(saveRepository)
 
 	postHandler := PostHandler.NewPostHandler(postService, likeService, saveService)
-
-	friendsRepo := FriendsRepo.NewFriendRepository(db.GetDB())
-	friendsService := FriendsService.NewFriendService(friendsRepo)
-	friendsHandler := FriendsHandler.NewFriendHandler(friendsService)
 
 	// user repo service handler
 	userRepository := UserRepo.NewUserRepository(db.GetDB())

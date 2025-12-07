@@ -1,9 +1,11 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	friendservice "chaladshare_backend/internal/friends/service"
 	"chaladshare_backend/internal/posts/models"
 	"chaladshare_backend/internal/posts/repository"
 )
@@ -14,6 +16,7 @@ type PostService interface {
 	DeletePost(postID int) error
 
 	GetAllPosts() ([]models.PostResponse, error)
+	GetFeedPosts(viewerID int) ([]models.PostResponse, error)
 	GetPostByID(postID int) (*models.PostResponse, error)
 	CountByUserID(userID int) (int, error)
 
@@ -25,11 +28,27 @@ type PostService interface {
 }
 
 type postService struct {
-	postRepo repository.PostRepository
+	postRepo  repository.PostRepository
+	friendSvc friendservice.FriendService
 }
 
-func NewPostService(postRepo repository.PostRepository) PostService {
-	return &postService{postRepo: postRepo}
+func NewPostService(postRepo repository.PostRepository, friendSvc friendservice.FriendService) PostService {
+	return &postService{
+		postRepo:  postRepo,
+		friendSvc: friendSvc,
+	}
+}
+
+func normalizeVisibility(v string) (string, error) {
+	vis := strings.ToLower(strings.TrimSpace(v))
+	switch vis {
+	case "", models.VisibilityPublic:
+		return models.VisibilityPublic, nil
+	case models.VisibilityFriends:
+		return models.VisibilityFriends, nil
+	default:
+		return "", fmt.Errorf("unsupported visibility: %s", v)
+	}
 }
 
 // สร้างโพสต์ใหม่
@@ -40,9 +59,12 @@ func (s *postService) CreatePost(post *models.Post, tags []string) (int, error) 
 	if strings.TrimSpace(post.Title) == "" {
 		return 0, fmt.Errorf("post_title is required")
 	}
-	if post.Visibility != models.VisibilityPublic {
-		return 0, fmt.Errorf("unsupported visibility")
+
+	vis, err := normalizeVisibility(post.Visibility)
+	if err != nil {
+		return 0, err
 	}
+	post.Visibility = vis
 
 	normTags := normalizeTags(tags)
 	postID, err := s.postRepo.CreatePost(post, normTags)
@@ -59,9 +81,32 @@ func (s *postService) UpdatePost(post *models.Post, tags []string) error {
 	if strings.TrimSpace(post.Title) == "" {
 		return fmt.Errorf("post_title is required")
 	}
-	if post.Visibility != models.VisibilityPublic {
-		return fmt.Errorf("unsupported visibility")
+
+	if strings.TrimSpace(post.Visibility) == "" {
+		// แปลว่าจงใจไม่ส่ง visibility มา → ใช้ค่าเดิมจาก DB
+		existing, err := s.postRepo.GetPostByID(post.PostID)
+		if err != nil {
+			return fmt.Errorf("get existing post: %w", err)
+		}
+		if existing == nil {
+			return fmt.Errorf("post not found")
+		}
+		post.Visibility = existing.Visibility
+	} else {
+		// มีส่งมา → ตรวจให้ถูกต้องเหมือนเดิม
+		vis, err := normalizeVisibility(post.Visibility)
+		if err != nil {
+			return err
+		}
+		post.Visibility = vis
 	}
+
+	vis, err := normalizeVisibility(post.Visibility)
+	if err != nil {
+		return err
+	}
+	post.Visibility = vis
+
 	var normTags []string
 	if tags != nil {
 		normTags = normalizeTags(tags)
@@ -119,6 +164,10 @@ func (s *postService) GetAllPosts() ([]models.PostResponse, error) {
 	return s.postRepo.GetAllPosts()
 }
 
+func (s *postService) GetFeedPosts(viewerID int) ([]models.PostResponse, error) {
+	return s.postRepo.GetFeedPosts(viewerID)
+}
+
 // each post by ID
 func (s *postService) GetPostByID(postID int) (*models.PostResponse, error) {
 	return s.postRepo.GetPostByID(postID)
@@ -172,7 +221,19 @@ func (s *postService) ViewPost(viewerID, postID int) (bool, string, error) {
 }
 
 func (s *postService) Friends(viewerID, authorID int) (bool, error) {
-	return false, nil
+	if viewerID <= 0 || authorID <= 0 {
+		return false, fmt.Errorf("invalid user id")
+	}
+
+	if viewerID == authorID {
+		return true, nil
+	}
+
+	ok, err := s.friendSvc.AreFriends(context.Background(), viewerID, authorID)
+	if err != nil {
+		return false, fmt.Errorf("check friends: %w", err)
+	}
+	return ok, nil
 }
 
 func (s *postService) GetSavedPosts(userID int) ([]models.PostResponse, error) {
