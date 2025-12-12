@@ -9,6 +9,7 @@ import CreatePost from './pages/Createpost';
 import Friends from './pages/Friends';
 import Profile from './pages/Profile';
 import ForgotPassword from './pages/ForgotPassword';
+import EditPost from "./pages/EditPost"; 
 
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/profile/:id" element={<Profile />} />
         <Route path="/forgot_password" element={<ForgotPassword />} />
+        <Route path="/posts/:id/edit" element={<EditPost />} />  
   
       </Routes>
     </Router>

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { VscEye, VscEyeClosed } from "react-icons/vsc";
+import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import axios from "axios";
 import Sidebar from "./Sidebar";
 import PostCard from "../component/Postcard";
@@ -41,7 +42,7 @@ const Profile = () => {
     following: 0,
   });
 
-  // โหมดแก้ไข
+  // โหมดแก้ไขโปรไฟล์
   const [isEditing, setIsEditing] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarFile, setAvatarFile] = useState(null);
@@ -118,7 +119,7 @@ const Profile = () => {
         }),
       });
 
-      // 3) เปลี่ยนรหัสผ่าน (ถ้ากรอกครบ)
+      // เปลี่ยนรหัสผ่าน (ถ้ากรอกครบ)
       if (pwdForm.current && pwdForm.newPwd && pwdForm.confirm) {
         await axios.post("/profile/password", {
           current_password: pwdForm.current,
@@ -127,7 +128,7 @@ const Profile = () => {
         });
       }
 
-      // 4) อัปเดตสถานะบนหน้า
+      // อัปเดตสถานะบนหน้า
       const fullAvatarUrl = avatarPreview
         ? avatarPreview
         : avatarUrl
@@ -158,6 +159,34 @@ const Profile = () => {
 
   const goToPostDetail = (post) => {
     if (post?.id) navigate(`/posts/${post.id}`);
+  };
+
+  // ---------- ฟังก์ชัน “แก้ไข / ลบโพสต์ของฉัน” ----------
+
+  const handleEditPost = (event, post) => {
+    event.stopPropagation();
+    if (!post?.id) return;
+    // ไปหน้าฟอร์มแก้ไขโพสต์ (สมมติ route แบบนี้; ถ้าโปรเจ็กต์ใช้ path อื่น ค่อยเปลี่ยนเองได้)
+    navigate(`/posts/${post.id}/edit`);
+  };
+
+  const handleDeletePost = async (event, post) => {
+    event.stopPropagation();
+    if (!post?.id) return;
+
+    const ok = window.confirm("คุณต้องการลบโพสต์นี้หรือไม่?");
+    if (!ok) return;
+
+    try {
+      await axios.delete(`/posts/${post.id}`);
+      setPosts((list) => list.filter((p) => p.id !== post.id));
+      setProfile((p) => ({
+        ...p,
+        posts: Math.max(0, (p.posts ?? 0) - 1),
+      }));
+    } catch (e) {
+      alert(e?.response?.data?.error || "ลบโพสต์ไม่สำเร็จ");
+    }
   };
 
   // โหลด myId
@@ -209,7 +238,7 @@ const Profile = () => {
         }
 
         const rawAvatar = prof?.data?.avatar_url || "";
-        const avatarForCards = rawAvatar ? toAbsUrl(rawAvatar) : Avatar;
+        // const avatarForCards = rawAvatar ? toAbsUrl(rawAvatar) : Avatar;
 
         const format = (list) =>
           Array.isArray(list)
@@ -302,7 +331,6 @@ const Profile = () => {
           if (typeof rel.is_following === "boolean") {
             setFollowStatus(rel.is_following ? "following" : "idle");
           } else if (rel.is_following) {
-            // กันกรณี backend ส่ง 0/1 หรือ "true"/"false"
             setFollowStatus("following");
           } else {
             setFollowStatus("idle");
@@ -314,13 +342,10 @@ const Profile = () => {
             rel.is_friend === 1 ||
             rel.is_friend === "1"
           ) {
-            // เป็นเพื่อนแล้ว
             setFriendStatus("friends");
           } else if (rel.friend_request_outgoing) {
-            // ยังไม่เป็นเพื่อน แต่เราส่งคำขอไปแล้ว
             setFriendStatus("requested");
           } else {
-            // ยังไม่ได้ขออะไร
             setFriendStatus("idle");
           }
         } else {
@@ -335,7 +360,7 @@ const Profile = () => {
     };
 
     fetchData();
-  }, [isOwn, ownerId, targetId]);
+  }, [isOwn, ownerId, targetId, myId, profile.name]);
 
   useEffect(() => {
     // ถ้าเป็นโปรไฟล์ตัวเอง ไม่ต้องเช็ค
@@ -536,7 +561,10 @@ const Profile = () => {
                         type="email"
                         value={editForm.email}
                         onChange={(e) =>
-                          setEditForm((f) => ({ ...f, email: e.target.value }))
+                          setEditForm((f) => ({
+                            ...f,
+                            email: e.target.value,
+                          }))
                         }
                       />
                     </div>
@@ -719,10 +747,33 @@ const Profile = () => {
                   {showing.map((post) => (
                     <div
                       key={post.id}
+                      className="profile-card-wrapper"
                       onClick={() => goToPostDetail(post)}
                       style={{ cursor: "pointer" }}
                     >
                       <PostCard post={post} />
+
+                      {/* ปุ่มแก้ไข / ลบ เฉพาะโพสต์ของตัวเองในแท็บ "โพสต์" */}
+                      {isOwn && activeTab === "posts" && (
+                        <div className="profile-manage-row">
+                          <button
+                            type="button"
+                            className="profile-manage-btn profile-manage-btn-edit"
+                            onClick={(e) => handleEditPost(e, post)}
+                          >
+                            <FiEdit2 />
+                            แก้ไข
+                          </button>
+                          <button
+                            type="button"
+                            className="profile-manage-btn profile-manage-btn-delete"
+                            onClick={(e) => handleDeletePost(e, post)}
+                          >
+                            <FiTrash2 />
+                            ลบ
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
