@@ -171,6 +171,7 @@ func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 		COALESCE(ps.post_like_count, 0) AS post_like_count,
 		COALESCE(ps.post_save_count, 0) AS post_save_count,
 		d.document_url AS document_file_url,
+		d.document_name AS document_name,
 		p.post_cover_url, up.avatar_url,
 		ARRAY_REMOVE(ARRAY_AGG(DISTINCT t.tag_name), NULL) AS tags
 	FROM posts p
@@ -180,7 +181,7 @@ func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 	LEFT JOIN tags t ON t.tag_id = pt.post_tag_tag_id
 	LEFT JOIN documents d ON d.document_id = p.post_document_id
 	LEFT JOIN user_profiles up ON up.profile_user_id = u.user_id
-	GROUP BY p.post_id, u.username, ps.post_like_count, ps.post_save_count, d.document_url, p.post_cover_url, up.avatar_url
+	GROUP BY p.post_id, u.username, ps.post_like_count, ps.post_save_count, d.document_url, d.document_name, p.post_cover_url, up.avatar_url
 	ORDER BY p.post_created_at DESC;`
 
 	rows, err := r.db.Query(query)
@@ -195,6 +196,7 @@ func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 			p         models.PostResponse
 			tags      pq.StringArray
 			fileURL   sql.NullString
+			docName   sql.NullString
 			coverURL  sql.NullString
 			avatarURL sql.NullString
 			docID     sql.NullInt64
@@ -206,7 +208,7 @@ func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 			&p.Title, &p.Description, &p.Visibility,
 			&docID, &sumID, &p.CreatedAt, &p.UpdatedAt,
 			&p.LikeCount, &p.SaveCount,
-			&fileURL, &coverURL, &avatarURL, &tags,
+			&fileURL, &docName, &coverURL, &avatarURL, &tags,
 		); err != nil {
 			return nil, err
 		}
@@ -221,6 +223,9 @@ func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 		}
 		if fileURL.Valid {
 			p.FileURL = &fileURL.String
+		}
+		if docName.Valid {
+			p.DocumentName = &docName.String
 		}
 		if coverURL.Valid {
 			p.CoverURL = &coverURL.String
@@ -247,6 +252,7 @@ func (r *postRepository) GetFeedPosts(viewerID int) ([]models.PostResponse, erro
 			COALESCE(ps.post_like_count, 0) AS post_like_count,
 			COALESCE(ps.post_save_count, 0) AS post_save_count,
 			d.document_url AS document_file_url,
+			d.document_name AS document_name,
 			p.post_cover_url, up.avatar_url,
 			ARRAY_REMOVE(ARRAY_AGG(DISTINCT t.tag_name), NULL) AS tags
 		FROM posts p
@@ -269,7 +275,7 @@ func (r *postRepository) GetFeedPosts(viewerID int) ([]models.PostResponse, erro
 				)
 			)
 		GROUP BY p.post_id, u.username, ps.post_like_count, ps.post_save_count,
-				 d.document_url, p.post_cover_url, up.avatar_url
+				 d.document_url, d.document_name, p.post_cover_url, up.avatar_url
 		ORDER BY p.post_created_at DESC;
 	`
 
@@ -285,6 +291,7 @@ func (r *postRepository) GetFeedPosts(viewerID int) ([]models.PostResponse, erro
 			p         models.PostResponse
 			tags      pq.StringArray
 			fileURL   sql.NullString
+			docName   sql.NullString
 			coverURL  sql.NullString
 			avatarURL sql.NullString
 			docID     sql.NullInt64
@@ -295,7 +302,7 @@ func (r *postRepository) GetFeedPosts(viewerID int) ([]models.PostResponse, erro
 			&p.Title, &p.Description, &p.Visibility,
 			&docID, &sumID, &p.CreatedAt, &p.UpdatedAt,
 			&p.LikeCount, &p.SaveCount,
-			&fileURL, &coverURL, &avatarURL, &tags,
+			&fileURL, &docName, &coverURL, &avatarURL, &tags,
 		); err != nil {
 			return nil, err
 		}
@@ -310,6 +317,9 @@ func (r *postRepository) GetFeedPosts(viewerID int) ([]models.PostResponse, erro
 		}
 		if fileURL.Valid {
 			p.FileURL = &fileURL.String
+		}
+		if docName.Valid {
+			p.DocumentName = &docName.String
 		}
 		if coverURL.Valid {
 			p.CoverURL = &coverURL.String
@@ -335,6 +345,7 @@ func (r *postRepository) GetPostByID(postID int) (*models.PostResponse, error) {
 		COALESCE(ps.post_like_count, 0)  AS post_like_count,
 		COALESCE(ps.post_save_count, 0)  AS post_save_count,
 		d.document_url AS document_file_url,
+		d.document_name AS document_name,
 		p.post_cover_url, up.avatar_url,
 		ARRAY_REMOVE(ARRAY_AGG(DISTINCT t.tag_name), NULL) AS tags
 	FROM posts p
@@ -345,13 +356,14 @@ func (r *postRepository) GetPostByID(postID int) (*models.PostResponse, error) {
 	LEFT JOIN documents d ON d.document_id = p.post_document_id
 	LEFT JOIN user_profiles up ON up.profile_user_id = u.user_id
 	WHERE p.post_id = $1
-	GROUP BY p.post_id, u.username, ps.post_like_count, ps.post_save_count, d.document_url, up.avatar_url;`
+	GROUP BY p.post_id, u.username, ps.post_like_count, ps.post_save_count, d.document_url, d.document_name, up.avatar_url;`
 
 	row := r.db.QueryRow(query, postID)
 	var (
 		p         models.PostResponse
 		tags      pq.StringArray
 		fileURL   sql.NullString
+		docName   sql.NullString
 		coverURL  sql.NullString
 		avatarURL sql.NullString
 		docID     sql.NullInt64
@@ -363,7 +375,7 @@ func (r *postRepository) GetPostByID(postID int) (*models.PostResponse, error) {
 		&p.Title, &p.Description, &p.Visibility,
 		&docID, &sumID, &p.CreatedAt, &p.UpdatedAt,
 		&p.LikeCount, &p.SaveCount,
-		&fileURL, &coverURL, &avatarURL, &tags,
+		&fileURL, &docName, &coverURL, &avatarURL, &tags,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, sql.ErrNoRows
@@ -380,6 +392,9 @@ func (r *postRepository) GetPostByID(postID int) (*models.PostResponse, error) {
 	}
 	if fileURL.Valid {
 		p.FileURL = &fileURL.String
+	}
+	if docName.Valid {
+		p.DocumentName = &docName.String
 	}
 	if coverURL.Valid {
 		p.CoverURL = &coverURL.String
@@ -416,6 +431,7 @@ func (r *postRepository) GetSavedPosts(userID int) ([]models.PostResponse, error
                COALESCE(ps.post_like_count, 0) AS post_like_count,
                COALESCE(ps.post_save_count, 0) AS post_save_count,
                d.document_url AS document_file_url,
+			   d.document_name AS document_name,
                p.post_cover_url, up.avatar_url,
                ARRAY_REMOVE(ARRAY_AGG(DISTINCT t.tag_name), NULL) AS tags
         FROM saved_posts sp
@@ -441,7 +457,7 @@ func (r *postRepository) GetSavedPosts(userID int) ([]models.PostResponse, error
               )
           )
         GROUP BY p.post_id, u.username, ps.post_like_count, ps.post_save_count,
-                 d.document_url, p.post_cover_url, up.avatar_url
+                 d.document_url, d.document_name, p.post_cover_url, up.avatar_url
         ORDER BY p.post_created_at DESC;
     `
 	rows, err := r.db.Query(query, userID)
@@ -456,6 +472,7 @@ func (r *postRepository) GetSavedPosts(userID int) ([]models.PostResponse, error
 			p         models.PostResponse
 			tags      pq.StringArray
 			fileURL   sql.NullString
+			docName   sql.NullString
 			coverURL  sql.NullString
 			avatarURL sql.NullString
 			docID     sql.NullInt64
@@ -467,7 +484,7 @@ func (r *postRepository) GetSavedPosts(userID int) ([]models.PostResponse, error
 			&p.Title, &p.Description, &p.Visibility,
 			&docID, &sumID, &p.CreatedAt, &p.UpdatedAt,
 			&p.LikeCount, &p.SaveCount,
-			&fileURL, &coverURL, &avatarURL, &tags,
+			&fileURL, &docName, &coverURL, &avatarURL, &tags,
 		); err != nil {
 			return nil, err
 		}
@@ -481,6 +498,9 @@ func (r *postRepository) GetSavedPosts(userID int) ([]models.PostResponse, error
 		}
 		if fileURL.Valid {
 			p.FileURL = &fileURL.String
+		}
+		if docName.Valid {
+			p.DocumentName = &docName.String
 		}
 		if coverURL.Valid {
 			p.CoverURL = &coverURL.String

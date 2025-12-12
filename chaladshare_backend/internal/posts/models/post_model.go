@@ -58,16 +58,17 @@ type PostStats struct {
 
 // for response
 type PostResponse struct {
-	PostID      int       `json:"post_id"`
-	AuthorID    int       `json:"author_id"`
-	AuthorName  string    `json:"author_name"`
-	Title       string    `json:"post_title"`
-	Description string    `json:"post_description"`
-	Visibility  string    `json:"post_visibility"`
-	DocumentID  *int      `json:"post_document_id"`
-	SummaryID   *int      `json:"post_summary_id"`
-	CreatedAt   time.Time `json:"post_created_at"`
-	UpdatedAt   time.Time `json:"post_updated_at"`
+	PostID       int       `json:"post_id"`
+	AuthorID     int       `json:"author_id"`
+	AuthorName   string    `json:"author_name"`
+	Title        string    `json:"post_title"`
+	Description  string    `json:"post_description"`
+	Visibility   string    `json:"post_visibility"`
+	DocumentID   *int      `json:"post_document_id"`
+	DocumentName *string   `json:"document_name"`
+	SummaryID    *int      `json:"post_summary_id"`
+	CreatedAt    time.Time `json:"post_created_at"`
+	UpdatedAt    time.Time `json:"post_updated_at"`
 
 	FileURL   *string  `json:"file_url"`
 	CoverURL  *string  `json:"cover_url"`
