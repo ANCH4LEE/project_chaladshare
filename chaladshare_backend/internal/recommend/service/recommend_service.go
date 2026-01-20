@@ -11,7 +11,6 @@ import (
 )
 
 type RecommendService interface {
-	// แนะนำให้ user ตาม "โพสต์ล่าสุดที่ user กดไลก์"
 	RecommendForUser(userID int, limit int) ([]recmodels.Candidatepost, error)
 }
 
@@ -25,7 +24,7 @@ func NewRecommendService(repo recrepo.RecommendRepo) RecommendService {
 
 func (s *recommendService) RecommendForUser(userID int, limit int) ([]recmodels.Candidatepost, error) {
 	if userID <= 0 {
-		return nil, errors.New("invalid user_id")
+		return nil, errors.New("invalid userid")
 	}
 	if limit <= 0 {
 		limit = 10
@@ -44,11 +43,10 @@ func (s *recommendService) RecommendForUser(userID int, limit int) ([]recmodels.
 		return nil, err
 	}
 	if len(candidates) == 0 {
-		// ไม่มี candidate ก็ fallback
 		return s.repo.ListFallback(userID, limit)
 	}
 
-	// 3) คำนวณ similarity + sort
+	// คำนวณ similarity + sort
 	type scored struct {
 		p     recmodels.Candidatepost
 		score float64
@@ -56,7 +54,6 @@ func (s *recommendService) RecommendForUser(userID int, limit int) ([]recmodels.
 	scoredList := make([]scored, 0, len(candidates))
 
 	for _, c := range candidates {
-		// กันเวคเตอร์ว่าง / ไม่เท่ากัน
 		if len(seed.Vec) == 0 || len(c.Vec) == 0 {
 			continue
 		}
@@ -81,14 +78,9 @@ func (s *recommendService) RecommendForUser(userID int, limit int) ([]recmodels.
 			continue
 		}
 		seen[it.p.PostID] = true
-
-		// ถ้าอยากโชว์คะแนนบนหน้าเว็บ: แนะนำให้เพิ่ม field Similarity ใน models แล้ว set ตรงนี้
-		// it.p.Similarity = it.score
-
 		out = append(out, it.p)
 	}
 
-	// ถ้ายังไม่ครบ limit -> เติม fallback
 	if len(out) < limit {
 		fb, err := s.repo.ListFallback(userID, limit*2)
 		if err == nil {

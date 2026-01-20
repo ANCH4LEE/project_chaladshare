@@ -82,6 +82,14 @@ const Sidebar = () => {
           <RiUser6Line /> โปรไฟล์
         </li>
 
+        <li
+          className={activeKey === "profile" ? "active" : ""}
+          onClick={() => go("profile", "/profile")}
+          style={{ cursor: "pointer" }}
+        >
+          <RiUser6Line /> ช่วยเหลือ
+        </li>
+
         <li onClick={() => navigate("/")} style={{ cursor: "pointer" }}>
           <RiLogoutCircleRLine /> ออกจากระบบ
         </li>

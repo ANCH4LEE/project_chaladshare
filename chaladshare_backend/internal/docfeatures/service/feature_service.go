@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 
+	"chaladshare_backend/internal/connect"
 	"chaladshare_backend/internal/docfeatures/models"
 	"chaladshare_backend/internal/docfeatures/repository"
 )
@@ -17,32 +18,36 @@ type FeatureService interface {
 }
 
 type featureService struct {
-	repo repository.DocFeaturesRepo
+	featureRepo repository.DocFeaturesRepo
+	aiClient    *connect.Client
 }
 
-func NewFeatureService(repo repository.DocFeaturesRepo) FeatureService {
-	return &featureService{repo: repo}
+func NewFeatureService(featureRepo repository.DocFeaturesRepo, aiClient *connect.Client) FeatureService {
+	return &featureService{
+		featureRepo: featureRepo,
+		aiClient:    aiClient,
+	}
 }
 
 func (s *featureService) CreateQueued(documentID int) error {
 	if documentID <= 0 {
 		return fmt.Errorf("invalid documentID")
 	}
-	return s.repo.CreateQueued(documentID)
+	return s.featureRepo.CreateQueued(documentID)
 }
 
 func (s *featureService) MarkProcessing(documentID int) error {
 	if documentID <= 0 {
 		return fmt.Errorf("invalid documentID")
 	}
-	return s.repo.MarkProcessing(documentID)
+	return s.featureRepo.MarkProcessing(documentID)
 }
 
 func (s *featureService) SaveResult(input models.SaveResult) error {
 	if input.DocumentID <= 0 {
 		return fmt.Errorf("invalid documentID")
 	}
-	return s.repo.SaveResult(input)
+	return s.featureRepo.SaveResult(input)
 }
 
 func (s *featureService) MarkFailed(documentID int, msg string) error {
@@ -52,39 +57,59 @@ func (s *featureService) MarkFailed(documentID int, msg string) error {
 	if msg == "" {
 		msg = "unknown error"
 	}
-	return s.repo.MarkFailed(documentID, msg)
+	return s.featureRepo.MarkFailed(documentID, msg)
 }
 
 func (s *featureService) GetByDocumentID(documentID int) (*models.DocumentFeature, error) {
 	if documentID <= 0 {
 		return nil, fmt.Errorf("invalid documentID")
 	}
-	return s.repo.GetByDocumentID(documentID)
+	return s.featureRepo.GetByDocumentID(documentID)
 }
 
 func (s *featureService) ProcessDocument(documentID int, pdfPath string) {
-	if err := s.repo.MarkProcessing(documentID); err != nil {
-		_ = s.repo.MarkFailed(documentID, err.Error())
+	if s.aiClient == nil {
+		_ = s.MarkFailed(documentID, "ai client is nil")
 		return
 	}
 
-	resp, err := callColabExtract(documentID, pdfPath)
+	if pdfPath == "" {
+		_ = s.MarkFailed(documentID, "pdfPath is empty")
+		return
+	}
+
+	if err := s.MarkProcessing(documentID); err != nil {
+		_ = s.MarkFailed(documentID, err.Error())
+		return
+	}
+
+	resp, err := s.aiClient.ExtractFeatures(documentID, pdfPath)
 	if err != nil {
-		_ = s.repo.MarkFailed(documentID, err.Error())
+		_ = s.MarkFailed(documentID, err.Error())
 		return
 	}
 
-	ct := resp.ContentText
+	if resp.StyleLabel == nil || *resp.StyleLabel == "" {
+		_ = s.MarkFailed(documentID, "missing style label ")
+		return
+	}
 
-	if err := s.repo.SaveResult(models.SaveResult{
+	if len(resp.StyleVectorV16) == 0 {
+		_ = s.MarkFailed(documentID, "empty style_vector_v16 from ai")
+		return
+	}
+
+	label := *resp.StyleLabel
+	ct := resp.ContentText
+	if err := s.SaveResult(models.SaveResult{
 		DocumentID:       documentID,
-		StyleLabel:       resp.StyleLabel,
+		StyleLabel:       label,
 		StyleVectorV16:   resp.StyleVectorV16,
 		ContentText:      &ct,
 		ContentEmbedding: resp.Embedding,
 		ClusterID:        resp.ClusterID,
 	}); err != nil {
-		_ = s.repo.MarkFailed(documentID, err.Error())
+		_ = s.MarkFailed(documentID, err.Error())
 		return
 	}
 }

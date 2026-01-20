@@ -30,7 +30,7 @@ type CreateQueuedInput struct {
 
 type SaveResult struct {
 	DocumentID       int       `json:"document_id"`
-	StyleLabel       *string   `json:"style_label,omitempty"`
+	StyleLabel       string    `json:"style_label"`
 	StyleVectorV16   []float64 `json:"style_vector_v16,omitempty"`
 	ContentText      *string   `json:"content_text,omitempty"`
 	ContentEmbedding []float64 `json:"content_embedding,omitempty"`

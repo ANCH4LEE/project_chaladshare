@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"chaladshare_backend/internal/config"
+	"chaladshare_backend/internal/connect"
 	"chaladshare_backend/internal/connectdb"
 	"chaladshare_backend/internal/middleware"
 
@@ -72,24 +73,32 @@ func main() {
 	}
 	defer db.Close()
 
-	//auth repo service handler
+	//auth
 	authRepository := AuthRepo.NewAuthRepository(db.GetDB())
 	authService := AuthService.NewAuthService(authRepository, []byte(cfg.JWTSecret), cfg.TokenTTLMinutes)
 	authHandler := AuthHandler.NewAuthHandler(authService, cfg.CookieName, false)
 
+	//friends
 	friendsRepo := FriendsRepo.NewFriendRepository(db.GetDB())
 	friendsService := FriendsService.NewFriendService(friendsRepo)
 	friendsHandler := FriendsHandler.NewFriendHandler(friendsService)
 
-	featureRepository := FeatureRepo.NewFeatureRepo(db.GetDB())
-	featureService := FeatureService.NewFeatureService(featureRepository)
+	// AI client (Colab/ngrok)
+	aiClient, err := connect.NewFromEnv()
+	if err != nil {
+		log.Printf("WARNING: cannot init AI client: %v", err)
+		aiClient = nil
+	}
 
-	//file repo service handler
+	featureRepository := FeatureRepo.NewFeatureRepo(db.GetDB())
+	featureService := FeatureService.NewFeatureService(featureRepository, aiClient)
+
+	//file
 	fileRepository := FileRepo.NewFileRepository(db.GetDB())
 	fileService := FileService.NewFileService(fileRepository, featureService)
 	fileHandler := FileHandler.NewFileHandler(fileService)
 
-	//post like save  repo service handler
+	//post like save
 	postRepository := PostRepo.NewPostRepository(db.GetDB())
 	postService := PostService.NewPostService(postRepository, friendsService)
 
@@ -101,13 +110,12 @@ func main() {
 
 	postHandler := PostHandler.NewPostHandler(postService, likeService, saveService)
 
-	// recommend repo service handler
-
-	// user repo service handler
+	// user
 	userRepository := UserRepo.NewUserRepository(db.GetDB())
 	userService := UserService.NewUserService(userRepository)
 	userHandler := UserHandler.NewUserHandler(userService, postService, friendsService)
 
+	//recommend
 	recommendRepo := RecommendRepo.NewRecommendRepo(db.GetDB())
 	recommendService := RecommendService.NewRecommendService(recommendRepo)
 	recommendHandler := RecommendHandler.NewRecommendHandler(recommendService)
@@ -138,7 +146,7 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
-	r.Use(TimeoutMiddleware(60 * time.Second))
+	r.Use(TimeoutMiddleware(180 * time.Second))
 	r.MaxMultipartMemory = 100 << 20
 	r.Static("/uploads", "./uploads")
 
@@ -237,9 +245,9 @@ func main() {
 		{
 			recommend.GET("", recommendHandler.GetRecommend)
 		}
+	}
 
-		if err := r.Run(":" + cfg.AppPort); err != nil {
-			log.Fatalf("Failed to run server: %v", err)
-		}
+	if err := r.Run(":" + cfg.AppPort); err != nil {
+		log.Fatalf("Failed to run server: %v", err)
 	}
 }

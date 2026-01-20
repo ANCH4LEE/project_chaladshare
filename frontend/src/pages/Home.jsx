@@ -214,7 +214,7 @@ const Home = () => {
           </div>
 
           {/* โพสต์ยอดนิยม */}
-          <h3>โพสต์สรุปยอดเยี่ยมประจำเดือน</h3>
+          <h3>โพสต์สรุปยอดเยี่ยม</h3>
           <div className="card-list">
             {rankedPopular.map((post, index) => (
               <div

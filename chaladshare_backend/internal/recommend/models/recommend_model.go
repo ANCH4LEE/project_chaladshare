@@ -1,14 +1,11 @@
 package models
 
-// Seed = โพสต์ต้นทาง (จากไลก์ล่าสุด) ที่ใช้เป็นตัวตั้ง
 type Seedpost struct {
 	PostID int
 	Label  string
 	Vec    []float64
 }
 
-// Candidate = โพสต์ผู้สมัครที่เอาไปเทียบ similarity
-// Vec ใส่ json:"-" เพื่อไม่ต้องส่งกลับ frontend
 type Candidatepost struct {
 	PostID      int    `json:"post_id"`
 	AuthorID    int    `json:"author_id"`
@@ -28,7 +25,6 @@ type Candidatepost struct {
 	Vec []float64 `json:"-"`
 }
 
-// RecommendPost = รูปแบบที่ส่งให้หน้าเว็บ (ตรงกับ PostCard เธอ)
 type RecommendPost struct {
 	ID         int    `json:"id"`
 	Title      string `json:"title"`

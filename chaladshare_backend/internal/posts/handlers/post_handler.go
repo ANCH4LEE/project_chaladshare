@@ -34,13 +34,12 @@ func (h *PostHandler) CreatePost(c *gin.Context) {
 	}
 
 	var req struct {
-		Title       string  `json:"post_title" binding:"required"`
-		Description string  `json:"post_description"`
-		Visibility  string  `json:"post_visibility" binding:"required"` // ตอนนี้รองรับ "public" เท่านั้น
-		DocumentID  *int    `json:"document_id"`
-		CoverURL    *string `json:"cover_url"`
-		// SummaryID   *int     `json:"post_summary_id"`
-		Tags []string `json:"tags"`
+		Title       string   `json:"post_title" binding:"required"`
+		Description string   `json:"post_description"`
+		Visibility  string   `json:"post_visibility" binding:"required"` // ตอนนี้รองรับ "public" เท่านั้น
+		DocumentID  *int     `json:"document_id"`
+		CoverURL    *string  `json:"cover_url"`
+		Tags        []string `json:"tags"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
@@ -58,7 +57,6 @@ func (h *PostHandler) CreatePost(c *gin.Context) {
 		Visibility:   req.Visibility,
 		DocumentID:   req.DocumentID,
 		CoverURL:     req.CoverURL,
-		SummaryID:    nil,
 	}
 
 	postID, err := h.postService.CreatePost(post, req.Tags)

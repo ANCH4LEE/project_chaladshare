@@ -17,7 +17,7 @@ func NewRecommendHandler(svc recservice.RecommendService) *RecommendHandler {
 	return &RecommendHandler{svc: svc}
 }
 
-// GET /api/v1/recommend?limit=10
+// GET /api/v1/recommend?limit=3
 func (h *RecommendHandler) GetRecommend(c *gin.Context) {
 	uid := c.GetInt("user_id")
 	if uid <= 0 {
@@ -25,14 +25,14 @@ func (h *RecommendHandler) GetRecommend(c *gin.Context) {
 		return
 	}
 
-	limit := 10
+	limit := 3
 	if v := c.Query("limit"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			limit = n
 		}
 	}
-	if limit > 50 {
-		limit = 50
+	if limit > 10 {
+		limit = 10
 	}
 
 	posts, err := h.svc.RecommendForUser(uid, limit)
@@ -40,8 +40,6 @@ func (h *RecommendHandler) GetRecommend(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	// ให้ frontend อ่านแบบ res.data.data ได้เหมือน like/save
 	c.JSON(http.StatusOK, gin.H{
 		"data": posts,
 	})

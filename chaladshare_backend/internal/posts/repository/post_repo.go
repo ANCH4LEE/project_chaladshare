@@ -43,19 +43,14 @@ func (r *postRepository) CreatePost(post *models.Post, tags []string) (int, erro
 	}
 	var docArg interface{} = *post.DocumentID
 
-	var sumArg interface{} = nil
-	if post.SummaryID != nil {
-		sumArg = *post.SummaryID
-	}
-
 	var coverArg interface{} = nil
 	if post.CoverURL != nil {
 		coverArg = *post.CoverURL
 	}
 
 	query := `INSERT INTO posts (post_author_user_id, post_title, post_description,
-			  post_visibility, post_document_id, post_cover_url, post_summary_id) 
-			  SELECT $1, $2, $3, $4, $5, $6, $7
+			  post_visibility, post_document_id, post_cover_url) 
+			  SELECT $1, $2, $3, $4, $5, $6
 			  FROM documents d
 			  WHERE d.document_id = $5 AND d.document_user_id = $1
 			  RETURNING post_id;`
@@ -64,7 +59,7 @@ func (r *postRepository) CreatePost(post *models.Post, tags []string) (int, erro
 	if err := tx.QueryRow(
 		query,
 		post.AuthorUserID, post.Title, post.Description,
-		post.Visibility, docArg, coverArg, sumArg,
+		post.Visibility, docArg, coverArg,
 	).Scan(&postID); err != nil {
 		if err == sql.ErrNoRows {
 			return 0, fmt.Errorf("invalid document_id or not owned by user")
@@ -167,7 +162,7 @@ func (r *postRepository) DeletePost(postID int) error {
 func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 	query := `SELECT p.post_id, p.post_author_user_id, u.username AS author_name,
 		p.post_title, p.post_description, p.post_visibility,
-		p.post_document_id, p.post_summary_id, p.post_created_at, p.post_updated_at,
+		p.post_document_id, p.post_created_at, p.post_updated_at,
 		COALESCE(ps.post_like_count, 0) AS post_like_count,
 		COALESCE(ps.post_save_count, 0) AS post_save_count,
 		d.document_url AS document_file_url,
@@ -200,13 +195,12 @@ func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 			coverURL  sql.NullString
 			avatarURL sql.NullString
 			docID     sql.NullInt64
-			sumID     sql.NullInt64
 		)
 
 		if err := rows.Scan(
 			&p.PostID, &p.AuthorID, &p.AuthorName,
 			&p.Title, &p.Description, &p.Visibility,
-			&docID, &sumID, &p.CreatedAt, &p.UpdatedAt,
+			&docID, &p.CreatedAt, &p.UpdatedAt,
 			&p.LikeCount, &p.SaveCount,
 			&fileURL, &docName, &coverURL, &avatarURL, &tags,
 		); err != nil {
@@ -216,10 +210,6 @@ func (r *postRepository) GetAllPosts() ([]models.PostResponse, error) {
 		if docID.Valid {
 			v := int(docID.Int64)
 			p.DocumentID = &v
-		}
-		if sumID.Valid {
-			v := int(sumID.Int64)
-			p.SummaryID = &v
 		}
 		if fileURL.Valid {
 			p.FileURL = &fileURL.String
@@ -248,7 +238,7 @@ func (r *postRepository) GetFeedPosts(viewerID int) ([]models.PostResponse, erro
 	query := `
 		SELECT p.post_id, p.post_author_user_id, u.username AS author_name,
 			p.post_title, p.post_description, p.post_visibility,
-			p.post_document_id, p.post_summary_id, p.post_created_at, p.post_updated_at,
+			p.post_document_id, p.post_created_at, p.post_updated_at,
 			COALESCE(ps.post_like_count, 0) AS post_like_count,
 			COALESCE(ps.post_save_count, 0) AS post_save_count,
 			d.document_url AS document_file_url,
@@ -295,12 +285,11 @@ func (r *postRepository) GetFeedPosts(viewerID int) ([]models.PostResponse, erro
 			coverURL  sql.NullString
 			avatarURL sql.NullString
 			docID     sql.NullInt64
-			sumID     sql.NullInt64
 		)
 		if err := rows.Scan(
 			&p.PostID, &p.AuthorID, &p.AuthorName,
 			&p.Title, &p.Description, &p.Visibility,
-			&docID, &sumID, &p.CreatedAt, &p.UpdatedAt,
+			&docID, &p.CreatedAt, &p.UpdatedAt,
 			&p.LikeCount, &p.SaveCount,
 			&fileURL, &docName, &coverURL, &avatarURL, &tags,
 		); err != nil {
@@ -310,10 +299,6 @@ func (r *postRepository) GetFeedPosts(viewerID int) ([]models.PostResponse, erro
 		if docID.Valid {
 			v := int(docID.Int64)
 			p.DocumentID = &v
-		}
-		if sumID.Valid {
-			v := int(sumID.Int64)
-			p.SummaryID = &v
 		}
 		if fileURL.Valid {
 			p.FileURL = &fileURL.String
@@ -341,7 +326,7 @@ func (r *postRepository) GetFeedPosts(viewerID int) ([]models.PostResponse, erro
 func (r *postRepository) GetPostByID(postID int) (*models.PostResponse, error) {
 	query := `SELECT p.post_id, p.post_author_user_id, u.username AS author_name,
 		p.post_title, p.post_description, p.post_visibility, p.post_document_id,
-		p.post_summary_id, p.post_created_at, p.post_updated_at,
+		p.post_created_at, p.post_updated_at,
 		COALESCE(ps.post_like_count, 0)  AS post_like_count,
 		COALESCE(ps.post_save_count, 0)  AS post_save_count,
 		d.document_url AS document_file_url,
@@ -367,13 +352,12 @@ func (r *postRepository) GetPostByID(postID int) (*models.PostResponse, error) {
 		coverURL  sql.NullString
 		avatarURL sql.NullString
 		docID     sql.NullInt64
-		sumID     sql.NullInt64
 	)
 
 	if err := row.Scan(
 		&p.PostID, &p.AuthorID, &p.AuthorName,
 		&p.Title, &p.Description, &p.Visibility,
-		&docID, &sumID, &p.CreatedAt, &p.UpdatedAt,
+		&docID, &p.CreatedAt, &p.UpdatedAt,
 		&p.LikeCount, &p.SaveCount,
 		&fileURL, &docName, &coverURL, &avatarURL, &tags,
 	); err != nil {
@@ -385,10 +369,6 @@ func (r *postRepository) GetPostByID(postID int) (*models.PostResponse, error) {
 	if docID.Valid {
 		v := int(docID.Int64)
 		p.DocumentID = &v
-	}
-	if sumID.Valid {
-		v := int(sumID.Int64)
-		p.SummaryID = &v
 	}
 	if fileURL.Valid {
 		p.FileURL = &fileURL.String
@@ -426,8 +406,7 @@ func (r *postRepository) GetSavedPosts(userID int) ([]models.PostResponse, error
 	query := `
         SELECT p.post_id, p.post_author_user_id, u.username AS author_name,
                p.post_title, p.post_description, p.post_visibility,
-               p.post_document_id, p.post_summary_id,
-               p.post_created_at, p.post_updated_at,
+               p.post_document_id, p.post_created_at, p.post_updated_at,
                COALESCE(ps.post_like_count, 0) AS post_like_count,
                COALESCE(ps.post_save_count, 0) AS post_save_count,
                d.document_url AS document_file_url,
@@ -476,13 +455,12 @@ func (r *postRepository) GetSavedPosts(userID int) ([]models.PostResponse, error
 			coverURL  sql.NullString
 			avatarURL sql.NullString
 			docID     sql.NullInt64
-			sumID     sql.NullInt64
 		)
 
 		if err := rows.Scan(
 			&p.PostID, &p.AuthorID, &p.AuthorName,
 			&p.Title, &p.Description, &p.Visibility,
-			&docID, &sumID, &p.CreatedAt, &p.UpdatedAt,
+			&docID, &p.CreatedAt, &p.UpdatedAt,
 			&p.LikeCount, &p.SaveCount,
 			&fileURL, &docName, &coverURL, &avatarURL, &tags,
 		); err != nil {
@@ -491,10 +469,6 @@ func (r *postRepository) GetSavedPosts(userID int) ([]models.PostResponse, error
 		if docID.Valid {
 			v := int(docID.Int64)
 			p.DocumentID = &v
-		}
-		if sumID.Valid {
-			v := int(sumID.Int64)
-			p.SummaryID = &v
 		}
 		if fileURL.Valid {
 			p.FileURL = &fileURL.String

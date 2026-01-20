@@ -132,8 +132,8 @@ const Profile = () => {
       const fullAvatarUrl = avatarPreview
         ? avatarPreview
         : avatarUrl
-          ? toAbsUrl(avatarUrl)
-          : profile.avatar;
+        ? toAbsUrl(avatarUrl)
+        : profile.avatar;
 
       setProfile((p) => ({
         ...p,
@@ -157,16 +157,33 @@ const Profile = () => {
   const [followStatus, setFollowStatus] = useState("idle");
   const [friendStatus, setFriendStatus] = useState("idle");
 
+  // ✅ dropdown ของปุ่มเพื่อน
+  const [friendMenuOpen, setFriendMenuOpen] = useState(false);
+
+  // ✅ ปิด dropdown เมื่อคลิกข้างนอก
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (!e.target.closest(".friend-dropdown-wrap")) {
+        setFriendMenuOpen(false);
+      }
+    };
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, []);
+
+  // ปิดเมนูเมื่อเปลี่ยนโปรไฟล์/สถานะ
+  useEffect(() => {
+    setFriendMenuOpen(false);
+  }, [targetId, friendStatus]);
+
   const goToPostDetail = (post) => {
     if (post?.id) navigate(`/posts/${post.id}`);
   };
 
   // ---------- ฟังก์ชัน “แก้ไข / ลบโพสต์ของฉัน” ----------
-
   const handleEditPost = (event, post) => {
     event.stopPropagation();
     if (!post?.id) return;
-    // ไปหน้าฟอร์มแก้ไขโพสต์ (สมมติ route แบบนี้; ถ้าโปรเจ็กต์ใช้ path อื่น ค่อยเปลี่ยนเองได้)
     navigate(`/posts/${post.id}/edit`);
   };
 
@@ -214,11 +231,11 @@ const Profile = () => {
       try {
         const prof = isOwn
           ? await axios.get("/profile", {
-            params: { with: "stats,followers,following,rel" },
-          })
+              params: { with: "stats,followers,following,rel" },
+            })
           : await axios.get(`/profile/${targetId}`, {
-            params: { with: "stats,followers,following,rel" },
-          });
+              params: { with: "stats,followers,following,rel" },
+            });
 
         const statsUserId = isOwn
           ? prof?.data?.user_id ?? prof?.data?.id ?? myId
@@ -234,65 +251,55 @@ const Profile = () => {
         if (isOwn) {
           try {
             savedRes = await axios.get("/posts/save");
-          } catch { }
+          } catch {}
         }
 
         const rawAvatar = prof?.data?.avatar_url || "";
-        // const avatarForCards = rawAvatar ? toAbsUrl(rawAvatar) : Avatar;
 
         const format = (list) =>
           Array.isArray(list)
             ? list.map((p) => {
-              const fileRaw = p.file_url || "";
-              const coverRaw = p.cover_url || "";
-              const isPdf = /\.pdf$/i.test(fileRaw);
+                const fileRaw = p.file_url || "";
+                const coverRaw = p.cover_url || "";
+                const isPdf = /\.pdf$/i.test(fileRaw);
 
-              const imgSrc = coverRaw
-                ? toAbsUrl(coverRaw)
-                : !fileRaw || isPdf
+                const imgSrc = coverRaw
+                  ? toAbsUrl(coverRaw)
+                  : !fileRaw || isPdf
                   ? "/img/pdf-placeholder.jpg"
                   : toAbsUrl(fileRaw);
 
-              const rawAuthorAvatar = p.avatar_url || "";
-              const authorImg = rawAuthorAvatar
-                ? toAbsUrl(rawAuthorAvatar)
-                : Avatar;
+                const rawAuthorAvatar = p.avatar_url || "";
+                const authorImg = rawAuthorAvatar ? toAbsUrl(rawAuthorAvatar) : Avatar;
 
-              const authorName =
-                p.author_name ||
-                p.username ||
-                (isOwn && profile.name) ||
-                "ผู้ใช้";
+                const authorName =
+                  p.author_name ||
+                  p.username ||
+                  (isOwn && profile.name) ||
+                  "ผู้ใช้";
 
-              return {
-                id: p.post_id,
-                post: p.post_id,
-                img: imgSrc,
-                isPdf,
-
-                likes: p.like_count ?? 0,
-                like_count: p.like_count ?? 0,
-                is_liked: !!p.is_liked,
-                is_saved: !!p.is_saved,
-
-                title: p.post_title,
-                tags: Array.isArray(p.tags)
-                  ? p.tags
-                    .map((t) => (t.startsWith("#") ? t : `#${t}`))
-                    .join(" ")
-                  : "",
-                authorId: p.author_id ?? p.post_user_id ?? p.user_id,
-                authorName,
-                authorImg,
-              };
-            })
+                return {
+                  id: p.post_id,
+                  post: p.post_id,
+                  img: imgSrc,
+                  isPdf,
+                  likes: p.like_count ?? 0,
+                  like_count: p.like_count ?? 0,
+                  is_liked: !!p.is_liked,
+                  is_saved: !!p.is_saved,
+                  title: p.post_title,
+                  tags: Array.isArray(p.tags)
+                    ? p.tags.map((t) => (t.startsWith("#") ? t : `#${t}`)).join(" ")
+                    : "",
+                  authorId: p.author_id ?? p.post_user_id ?? p.user_id,
+                  authorName,
+                  authorImg,
+                };
+              })
             : [];
 
         setProfile((prev) => {
-          const avatarFull = rawAvatar
-            ? toAbsUrl(rawAvatar)
-            : prev.avatar || Avatar;
-
+          const avatarFull = rawAvatar ? toAbsUrl(rawAvatar) : prev.avatar || Avatar;
           return {
             ...prev,
             name: prof?.data?.username ?? prev.name,
@@ -308,22 +315,22 @@ const Profile = () => {
         const postRows = Array.isArray(postsRes?.data?.data)
           ? postsRes.data.data
           : Array.isArray(postsRes?.data)
-            ? postsRes.data
-            : [];
+          ? postsRes.data
+          : [];
         const savedRows = Array.isArray(savedRes?.data?.data)
           ? savedRes.data.data
           : Array.isArray(savedRes?.data)
-            ? savedRes.data
-            : [];
+          ? savedRes.data
+          : [];
 
         const ownerRows = postRows.filter(
           (p) =>
-            String(p.author_id ?? p.post_user_id ?? p.user_id) ===
-            String(ownerId)
+            String(p.author_id ?? p.post_user_id ?? p.user_id) === String(ownerId)
         );
 
         setPosts(format(ownerRows));
         setSavedPosts(isOwn ? format(savedRows) : []);
+
         if (!isOwn) {
           const rel = prof?.data ?? {};
 
@@ -336,12 +343,9 @@ const Profile = () => {
             setFollowStatus("idle");
           }
 
-          // friend
-          if (
-            rel.is_friend === true ||
-            rel.is_friend === 1 ||
-            rel.is_friend === "1"
-          ) {
+          // friend (ถ้า backend ไม่ส่ง rel.friend_request_outgoing มาจริง ๆ
+          // เราจะไปเช็คซ้ำใน checkFriendRelation ด้านล่าง)
+          if (rel.is_friend === true || rel.is_friend === 1 || rel.is_friend === "1") {
             setFriendStatus("friends");
           } else if (rel.friend_request_outgoing) {
             setFriendStatus("requested");
@@ -366,33 +370,40 @@ const Profile = () => {
     // ถ้าเป็นโปรไฟล์ตัวเอง ไม่ต้องเช็ค
     if (isOwn || !myId || !targetId) return;
 
-    // ถ้ารู้อยู่แล้วว่าเป็นเพื่อน/ส่งคำขอแล้ว ก็ไม่ต้องยิงซ้ำ
-    if (friendStatus !== "idle") return;
+    // ✅ ถ้ารู้อยู่แล้วว่าเป็นเพื่อน ก็ไม่ต้องยิงซ้ำ
+    if (friendStatus === "friends") return;
 
     const checkFriendRelation = async () => {
       try {
         // 1) เช็คว่าเป็นเพื่อนกันแล้วหรือยัง
         const friendsRes = await axios.get(`/social/friends/${myId}`, {
-          params: { page: 1, size: 200, search: "" },
+          params: { page: 1, size: 500, search: "" },
         });
         const friendItems = friendsRes.data.items || [];
-        const isFriend = friendItems.some(
-          (f) => String(f.user_id) === String(targetId)
-        );
+        const isFriend = friendItems.some((f) => String(f.user_id) === String(targetId));
 
         if (isFriend) {
           setFriendStatus("friends");
           return;
         }
 
-        // 2) ถ้ายังไม่ใช่เพื่อน → เช็ค outgoing requests
+        // 2) ถ้ายังไม่ใช่เพื่อน → เช็ค outgoing requests (✅ แก้ให้ robust)
         const outgoingRes = await axios.get("/social/requests/outgoing", {
-          params: { page: 1, size: 50 },
+          params: { page: 1, size: 500 },
         });
         const outgoingItems = outgoingRes.data.items || [];
-        const hasOutgoing = outgoingItems.some(
-          (r) => String(r.addressee_user_id) === String(targetId)
-        );
+
+        const hasOutgoing = outgoingItems.some((r) => {
+          const toId =
+            r.addressee_user_id ??
+            r.addressee_id ??
+            r.to_user_id ??
+            r.receiver_id ??
+            r.requested_user_id ??
+            r.target_user_id;
+
+          return String(toId) === String(targetId);
+        });
 
         if (hasOutgoing) {
           setFriendStatus("requested");
@@ -400,7 +411,12 @@ const Profile = () => {
           setFriendStatus("idle");
         }
       } catch (e) {
-        console.error("checkFriendRelation failed:", e);
+        // ถ้ามี 401/500 จะได้เห็น ไม่เงียบจน UI เพี้ยน
+        console.error(
+          "checkFriendRelation failed:",
+          e?.response?.status,
+          e?.response?.data || e
+        );
       }
     };
 
@@ -443,6 +459,62 @@ const Profile = () => {
     }
   };
 
+  // ✅ ยกเลิกคำขอ (ตอน requested) — robust กับชื่อ field
+  const onCancelFriendRequest = async () => {
+    if (isOwn || !targetId) return;
+
+    try {
+      const outgoingRes = await axios.get("/social/requests/outgoing", {
+        params: { page: 1, size: 500 },
+      });
+      const items = outgoingRes?.data?.items || [];
+
+      const req = items.find((r) => {
+        const toId =
+          r.addressee_user_id ??
+          r.addressee_id ??
+          r.to_user_id ??
+          r.receiver_id ??
+          r.requested_user_id ??
+          r.target_user_id;
+
+        return String(toId) === String(targetId);
+      });
+
+      if (!req) {
+        setFriendStatus("idle");
+        setFriendMenuOpen(false);
+        return;
+      }
+
+      const requestId = req.request_id ?? req.friend_request_id ?? req.id;
+      if (!requestId) {
+        console.warn("No request id field found in outgoing request item:", req);
+        return;
+      }
+
+      await axios.delete(`/social/requests/${requestId}`);
+
+      setFriendStatus("idle");
+      setFriendMenuOpen(false);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // ✅ เลิกเป็นเพื่อน (ตอน friends)
+  const onUnfriend = async () => {
+    if (isOwn || !targetId) return;
+
+    try {
+      await axios.delete(`/social/friends/${targetId}`);
+      setFriendStatus("idle");
+      setFriendMenuOpen(false);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const showing = useMemo(
     () => (activeTab === "posts" ? posts : savedPosts),
     [activeTab, posts, savedPosts]
@@ -472,22 +544,17 @@ const Profile = () => {
           <div className="profile-shell">
             {/* Header */}
             <section className="profile-header">
-              <img
-                src={profile.avatar}
-                alt={profile.name}
-                className="profile-avatar"
-              />
+              <img src={profile.avatar} alt={profile.name} className="profile-avatar" />
               <div className="profile-info">
                 <div className="profile-toprow">
                   {isOwn ? (
                     <h2 className="profile-name">{profile.name || "—"}</h2>
                   ) : (
                     <h2 className="profile-name">
-                      <Link to={`/profile/${targetId}`}>
-                        {profile.name || "—"}
-                      </Link>
+                      <Link to={`/profile/${targetId}`}>{profile.name || "—"}</Link>
                     </h2>
                   )}
+
                   {isOwn ? (
                     <button className="profile-btn-edit" onClick={openEdit}>
                       แก้ไขโปรไฟล์
@@ -501,26 +568,58 @@ const Profile = () => {
                         {followStatus === "following" ? "กำลังติดตาม" : "ติดตาม"}
                       </button>
 
-                      <button
-                        className={`btn-friend ${friendStatus === "friends"
-                            ? "is-friends"
-                            : friendStatus === "requested"
+                      {/* ปุ่มเพื่อนแบบ 3 สถานะ + dropdown */}
+                      <div className="friend-dropdown-wrap">
+                        <button
+                          className={`btn-friend ${
+                            friendStatus === "friends"
+                              ? "is-friends"
+                              : friendStatus === "requested"
                               ? "is-requested"
                               : ""
                           }`}
-                        onClick={onAddFriend}
-                        disabled={friendStatus !== "idle"}
-                      >
-                        {friendStatus === "friends"
-                          ? "เป็นเพื่อนกันแล้ว"
-                          : friendStatus === "requested"
-                            ? "ส่งคำขอแล้ว"
+                          onClick={() => {
+                            if (friendStatus === "idle") onAddFriend();
+                            else setFriendMenuOpen((v) => !v);
+                          }}
+                        >
+                          {friendStatus === "friends"
+                            ? "เพื่อน"
+                            : friendStatus === "requested"
+                            ? "กำลังรอการตอบรับ"
                             : "+ เพิ่มเพื่อน"}
-                      </button>
-                    </div>
+                        </button>
 
+                        {(friendStatus === "requested" || friendStatus === "friends") &&
+                          friendMenuOpen && (
+                            <div className="friend-dropdown">
+                              {friendStatus === "requested" && (
+                                <button
+                                  type="button"
+                                  className="friend-dropdown-item danger"
+                                  onClick={onCancelFriendRequest}
+                                >
+                                  ยกเลิกคำขอ
+                                </button>
+                              )}
+
+                              {friendStatus === "friends" && (
+                                <button
+                                  type="button"
+                                  className="friend-dropdown-item danger"
+                                  onClick={onUnfriend}
+                                >
+                                  เลิกเป็นเพื่อน
+                                </button>
+                              )}
+                            </div>
+                          )}
+                      </div>
+                      {/* จบส่วนปุ่มเพื่อน */}
+                    </div>
                   )}
                 </div>
+
                 <p className="profile-bio">{profile.bio || ""}</p>
                 <div className="profile-stats">
                   <span>{profile.posts} โพสต์</span>
@@ -569,10 +668,7 @@ const Profile = () => {
                         type="email"
                         value={editForm.email}
                         onChange={(e) =>
-                          setEditForm((f) => ({
-                            ...f,
-                            email: e.target.value,
-                          }))
+                          setEditForm((f) => ({ ...f, email: e.target.value }))
                         }
                       />
                     </div>
@@ -598,10 +694,7 @@ const Profile = () => {
                             type={showPwd.current ? "text" : "password"}
                             value={pwdForm.current}
                             onChange={(e) =>
-                              setPwdForm((p) => ({
-                                ...p,
-                                current: e.target.value,
-                              }))
+                              setPwdForm((p) => ({ ...p, current: e.target.value }))
                             }
                             placeholder="••••••••"
                           />
@@ -609,12 +702,8 @@ const Profile = () => {
                             type="button"
                             className="pw-toggle"
                             onClick={() => toggleShow("current")}
-                            aria-label={
-                              showPwd.current ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"
-                            }
-                            title={
-                              showPwd.current ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"
-                            }
+                            aria-label={showPwd.current ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
+                            title={showPwd.current ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
                           >
                             {showPwd.current ? <VscEyeClosed /> : <VscEye />}
                           </button>
@@ -642,19 +731,14 @@ const Profile = () => {
                             type={showPwd.newPwd ? "text" : "password"}
                             value={pwdForm.newPwd}
                             onChange={(e) =>
-                              setPwdForm((p) => ({
-                                ...p,
-                                newPwd: e.target.value,
-                              }))
+                              setPwdForm((p) => ({ ...p, newPwd: e.target.value }))
                             }
                           />
                           <button
                             type="button"
                             className="pw-toggle"
                             onClick={() => toggleShow("newPwd")}
-                            aria-label={
-                              showPwd.newPwd ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"
-                            }
+                            aria-label={showPwd.newPwd ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
                           >
                             {showPwd.newPwd ? <VscEyeClosed /> : <VscEye />}
                           </button>
@@ -669,19 +753,14 @@ const Profile = () => {
                             type={showPwd.confirm ? "text" : "password"}
                             value={pwdForm.confirm}
                             onChange={(e) =>
-                              setPwdForm((p) => ({
-                                ...p,
-                                confirm: e.target.value,
-                              }))
+                              setPwdForm((p) => ({ ...p, confirm: e.target.value }))
                             }
                           />
                           <button
                             type="button"
                             className="pw-toggle"
                             onClick={() => toggleShow("confirm")}
-                            aria-label={
-                              showPwd.confirm ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"
-                            }
+                            aria-label={showPwd.confirm ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
                           >
                             {showPwd.confirm ? <VscEyeClosed /> : <VscEye />}
                           </button>
@@ -699,11 +778,7 @@ const Profile = () => {
                       >
                         ยกเลิก
                       </button>
-                      <button
-                        className="btn-save"
-                        onClick={submitEdit}
-                        disabled={saving}
-                      >
+                      <button className="btn-save" onClick={submitEdit} disabled={saving}>
                         {saving ? "กำลังบันทึก…" : "บันทึกการแก้ไข"}
                       </button>
                     </div>
@@ -717,25 +792,20 @@ const Profile = () => {
             <div className="profile-tabs">
               <div className="profile-tabs-track">
                 <button
-                  className={`profile-tab ${activeTab === "posts" ? "active" : ""
-                    }`}
+                  className={`profile-tab ${activeTab === "posts" ? "active" : ""}`}
                   onClick={() => setActiveTab("posts")}
                 >
                   โพสต์
                 </button>
                 {isOwn && (
                   <button
-                    className={`profile-tab ${activeTab === "saved" ? "active" : ""
-                      }`}
+                    className={`profile-tab ${activeTab === "saved" ? "active" : ""}`}
                     onClick={() => setActiveTab("saved")}
                   >
                     รายการที่บันทึกไว้
                   </button>
                 )}
-                <div
-                  className={`profile-tab-underline ${activeTab === "saved" ? "saved" : ""
-                    }`}
-                />
+                <div className={`profile-tab-underline ${activeTab === "saved" ? "saved" : ""}`} />
               </div>
             </div>
 

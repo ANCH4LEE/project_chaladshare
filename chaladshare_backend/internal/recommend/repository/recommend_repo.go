@@ -29,7 +29,7 @@ const qSeed = `
 		SELECT
 		p.post_id,
 		df.style_label,
-		df.style_vector
+		df.style_vector_raw
 		FROM likes l
 		JOIN posts p
 		ON p.post_id = l.like_post_id
@@ -40,7 +40,7 @@ const qSeed = `
 		WHERE l.like_user_id = $1
 		AND df.feature_status = 'done'
 		AND df.style_label IS NOT NULL
-		AND df.style_vector IS NOT NULL
+		AND df.style_vector_raw IS NOT NULL
 		ORDER BY l.like_created_at DESC
 		LIMIT 1;
 		`
@@ -53,30 +53,23 @@ const qCandidates = `
 		p.post_description,
 		p.post_cover_url,
 		p.post_visibility,
-
 		u.username AS author_name,
 		up.avatar_url AS author_img,
-
 		COALESCE(ps.post_like_count, 0) AS like_count,
-
 		EXISTS (
 			SELECT 1 FROM likes l2
 			WHERE l2.like_user_id = $1 AND l2.like_post_id = p.post_id
 		) AS is_liked,
-
 		EXISTS (
 			SELECT 1 FROM saved_posts sp
 			WHERE sp.save_user_id = $1 AND sp.save_post_id = p.post_id
 		) AS is_saved,
-
-		(
-			SELECT string_agg(t.tag_name, ', ')
+		( SELECT string_agg(t.tag_name, ', ')
 			FROM post_tags pt
 			JOIN tags t ON t.tag_id = pt.post_tag_tag_id
 			WHERE pt.post_tag_post_id = p.post_id
 		) AS tags,
-
-		df.style_vector
+		df.style_vector_raw
 		FROM posts p
 		JOIN documents d
 		ON d.document_id = p.post_document_id
@@ -90,7 +83,7 @@ const qCandidates = `
 		ON ps.post_stats_post_id = p.post_id
 		WHERE df.feature_status = 'done'
 		AND df.style_label = $2
-		AND df.style_vector IS NOT NULL
+		AND df.style_vector_raw IS NOT NULL
 		AND p.post_id <> $3
 		AND NOT EXISTS (
 		SELECT 1 FROM likes l2
@@ -119,30 +112,23 @@ const qFallback = `
 		p.post_description,
 		p.post_cover_url,
 		p.post_visibility,
-
 		u.username AS author_name,
 		up.avatar_url AS author_img,
-
 		COALESCE(ps.post_like_count, 0) AS like_count,
-
 		EXISTS (
 			SELECT 1 FROM likes l2
 			WHERE l2.like_user_id = $1 AND l2.like_post_id = p.post_id
 		) AS is_liked,
-
 		EXISTS (
 			SELECT 1 FROM saved_posts sp
 			WHERE sp.save_user_id = $1 AND sp.save_post_id = p.post_id
 		) AS is_saved,
-
-		(
-			SELECT string_agg(t.tag_name, ', ')
+		( SELECT string_agg(t.tag_name, ', ')
 			FROM post_tags pt
 			JOIN tags t ON t.tag_id = pt.post_tag_tag_id
 			WHERE pt.post_tag_post_id = p.post_id
 		) AS tags,
-
-		df.style_vector
+		df.style_vector_raw
 		FROM posts p
 		LEFT JOIN documents d
 		ON d.document_id = p.post_document_id
@@ -267,7 +253,7 @@ func (r *recommendRepo) ListFallback(userID int, limit int) ([]recmodels.Candida
 		IsLiked     bool
 		IsSaved     bool
 		Tags        sql.NullString
-		RawVec      []byte // อาจ null ได้ถ้าไม่มี document_features
+		RawVec      []byte
 	}
 
 	rows, err := r.db.Query(qFallback, userID, limit)

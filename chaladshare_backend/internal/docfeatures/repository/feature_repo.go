@@ -56,12 +56,12 @@ func f64ToF32(a []float64) []float32 {
 
 func (r *FeatureRepo) SaveResult(input models.SaveResult) error {
 	if len(input.StyleVectorV16) == 0 {
-		return fmt.Errorf("empty style_vector (len=0)")
+		return fmt.Errorf("empty style vector (len=0)")
 	}
 
 	vecJSON, err := json.Marshal(input.StyleVectorV16)
 	if err != nil {
-		return fmt.Errorf("marshal style_vector: %w", err)
+		return fmt.Errorf("marshal style vector: %w", err)
 	}
 
 	sv16 := pgvector.NewVector(f64ToF32(input.StyleVectorV16))
@@ -76,10 +76,10 @@ func (r *FeatureRepo) SaveResult(input models.SaveResult) error {
 		SET feature_status    = $2,
 		    style_label       = $3,
 		    style_vector_v16  = $4,
-		    style_vector      = $5::jsonb,
+		    style_vector_raw  = $5::jsonb,
 		    content_text      = $6,
 		    content_embedding = $7,
-		    cluster_id        = $8,
+		    cluster_id        = COALESCE($8, cluster_id),
 		    error_message     = NULL
 		WHERE document_id = $1;
 	`
@@ -108,7 +108,7 @@ func (r *FeatureRepo) MarkFailed(documentID int, msg string) error {
 
 func (r *FeatureRepo) GetByDocumentID(documentID int) (*models.DocumentFeature, error) {
 	q := `
-		SELECT document_id, feature_status, style_label, style_vector, cluster_id,
+		SELECT document_id, feature_status, style_label, style_vector_raw, cluster_id,
 		       error_message, created_at, updated_at
 		FROM document_features
 		WHERE document_id = $1;

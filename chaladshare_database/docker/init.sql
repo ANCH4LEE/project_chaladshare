@@ -143,27 +143,36 @@ create table if not exists documents (
 
 -- ตารางเก็บสรุป (summaries)
 create table if not exists summaries (
-    summary_id         serial primary key,
-    summary_text       text not null,  -- ตัวสรุปข้อความ
-    summary_html       text,           -- ถ้ามี highlight HTML
-    summary_pdf_url    text,           -- ถ้ามี export PDF
-    summary_created_at timestamptz default now() -- เวลา generate
+    summary_id            serial primary key,
+    summary_document_id   integer not null references documents(document_id) on delete cascade,
+    summary_status        varchar(20) not null default 'queued' check (summary_status in ('queued','processing','done','failed')),
+    summary_task_id       text,
+    summary_error_message text,
+    summary_text          text,  -- ตัวสรุปข้อความ
+    summary_html          text,           -- ถ้ามี highlight HTML
+    summary_pdf_url       text,           -- ถ้ามี export PDF
+    summary_created_at    timestamptz default now(), -- เวลา generate
+    summary_started_at    timestamptz,
+    summary_finished_at   timestamptz,
+    summary_updated_at    timestamptz default now()
 );
 
+create index if not exists ix_summaries_document_id on summaries(summary_document_id);
 
 -- ตารางโพสต์
 create table if not exists posts (
     post_id             serial primary key,
-    post_author_user_id integer references users(user_id) on delete cascade, -- ผู้โพสต์
+    post_author_user_id integer references users(user_id) on delete cascade,  -- ผู้โพสต์
     post_title          varchar(120) not null,                                -- หัวข้อโพสต์
-    post_description    text,                                         -- คำอธิบาย
-    post_visibility     varchar(10) check (post_visibility in ('public','friends')), -- การมองเห็น
-    post_document_id    integer references documents(document_id),            -- อ้างไฟล์
-    post_cover_url      text,
-    post_summary_id     integer references summaries(summary_id),             -- อ้างสรุป
+    post_description    text,                                                 -- คำอธิบาย
+    post_visibility     varchar(10) not null check (post_visibility in ('public','friends')),    -- การมองเห็น
+    post_document_id    integer references documents(document_id) on delete set null,            -- อ้างไฟล์
+    post_cover_url      text,       
     post_created_at     timestamptz default now(),
     post_updated_at     timestamptz default now()
 );
+
+create index if not exists ix_posts_document_id on posts(post_document_id);
 
 -- ตารางแท็ก (tags)
 create table if not exists tags (
@@ -203,7 +212,7 @@ create table if not exists post_stats (
 );
 
 
-CREATE EXTENSION IF NOT EXISTS vector; -- เปิดใช้ pgvector
+CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS trigger AS $$
@@ -213,7 +222,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- ตาราง document_features 
+-- ตาราง document_features
 CREATE TABLE IF NOT EXISTS document_features (
   document_id      integer PRIMARY KEY
                   REFERENCES documents(document_id) ON DELETE CASCADE,
@@ -221,17 +230,32 @@ CREATE TABLE IF NOT EXISTS document_features (
   feature_status   varchar(20) NOT NULL DEFAULT 'queued'
                   CHECK (feature_status IN ('queued','processing','done','failed')),
 
-  -- แยกประเภทไฟล์
+  -- แยกประเภทไฟล์ (classification)
   style_label      varchar(20)
                   CHECK (style_label IN ('typed','handwritten','empty','not_typed','unknown')),
 
-  
-  style_vector_v16 vector(16), -- เก็บเวกเตอร์สไตล์
-  style_vector     jsonb, -- เผื่อช่วงแรกที่ระบบยังส่งเวกเตอร์เป็น list/JSON
-  cluster_id       integer, -- cluster จากฝั่งเวกเตอร์สไตล์
+  -- สำหรับ similarity / clustering
+  style_vector_v16 vector(16),
+
+  -- เก็บ raw/compat ช่วงแรกเท่านั้น 
+  style_vector_raw jsonb,
+
+  -- cluster กลุ่มย่อยภายในประเภท (typed/handwritten)
+  -- NULL = ยังไม่ทำ clustering
+  -- -1   = ไม่เข้า clustering (เช่น empty/not_typed/unknown)
+  -- >=0  = cluster จริง
+  cluster_id       integer
+                  CHECK (cluster_id IS NULL OR cluster_id >= -1),
+
+  -- เวลา update clustering รอบล่าสุด 
+  cluster_updated_at timestamptz,
+
   content_text     text,
-  content_embedding vector,
-  classify_debug   jsonb, -- debug ที่ colab ส่งกลับมาได้
+  content_embedding vector(768),
+
+  classify_debug   jsonb, -- debug จาก classify
+  process_trace    jsonb, -- trace ละเอียดจาก process_one_pdf 
+
   error_message    text,
   created_at       timestamptz NOT NULL DEFAULT now(),
   updated_at       timestamptz NOT NULL DEFAULT now()
@@ -253,6 +277,11 @@ CREATE INDEX IF NOT EXISTS ix_document_features_style_label
 CREATE INDEX IF NOT EXISTS ix_document_features_cluster_id
   ON document_features(cluster_id);
 
+-- (แนะนำเพิ่ม) เร็วขึ้นเวลาคัด typed/hand + cluster เดียวกัน
+CREATE INDEX IF NOT EXISTS ix_document_features_label_cluster
+  ON document_features(style_label, cluster_id);
+
+-- pgvector HNSW index (style vector)
 CREATE INDEX IF NOT EXISTS ix_document_features_stylevec_hnsw
   ON document_features
   USING hnsw (style_vector_v16 vector_cosine_ops)
