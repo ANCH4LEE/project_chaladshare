@@ -19,18 +19,86 @@ const SparkleIcon = () => (
   </svg>
 );
 
+// ✅ ngrok เปลี่ยนบ่อย แนะนำย้ายไป .env ทีหลัง
+const API_URL = "https://unsmarting-kamari-arbored.ngrok-free.dev/summarize";
+
 const AISummary = () => {
   const inputRef = useRef(null);
+
   const [file, setFile] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [summaryHtml, setSummaryHtml] = useState("");
+
+  // ✅ เก็บ controller สำหรับยกเลิก request ก่อนหน้า
+  const abortRef = useRef(null);
 
   const onPickFile = () => inputRef.current?.click();
 
-  const onFileChange = (e) => {
+  const uploadToAI = async (pdfFile) => {
+    // ✅ ยกเลิก request เก่าถ้ายังวิ่งอยู่
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setIsLoading(true);
+    setErrorMsg("");
+    setSummaryHtml("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", pdfFile); // ✅ key = file ให้ตรง FastAPI
+
+      const res = await fetch(API_URL, {
+        method: "POST",
+        body: formData,
+        signal: controller.signal,
+        credentials: "omit", // ✅ กัน ngrok/cors งอแงบางเคส
+        headers: {
+          "ngrok-skip-browser-warning": "true",
+          Accept: "application/json",
+          // ❌ อย่าใส่ Content-Type เอง เพราะ browser ต้อง set boundary ให้ FormData
+        },
+      });
+
+      const ct = res.headers.get("content-type") || "";
+      let data;
+
+      if (ct.includes("application/json")) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(
+          res.ok
+            ? "Response ไม่ใช่ JSON (อาจโดน ngrok warning/HTML แทรก)"
+            : `HTTP ${res.status}: ${text.slice(0, 200)}`
+        );
+      }
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Upload failed");
+      }
+
+      setSummaryHtml(data?.summary_html || "");
+    } catch (err) {
+      // ✅ ถ้ายกเลิกเอง ไม่ต้องโชว์เป็น error
+      if (err?.name === "AbortError") return;
+      setErrorMsg(err?.message || "เกิดข้อผิดพลาดระหว่างอัปโหลด/สรุป");
+    } finally {
+      // ✅ เคลียร์เฉพาะตอน controller ตัวนี้ยังเป็นตัวล่าสุด
+      if (abortRef.current === controller) {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const onFileChange = async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
 
-    const isPdf =
-      f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
+    const isPdf = f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
     if (!isPdf) {
       alert("กรุณาเลือกไฟล์ PDF เท่านั้น");
       if (inputRef.current) inputRef.current.value = "";
@@ -38,10 +106,21 @@ const AISummary = () => {
     }
 
     setFile(f);
+
+    // ✅ กันเคสเลือกไฟล์เดิมซ้ำแล้ว onChange ไม่ยิง
+    if (inputRef.current) inputRef.current.value = "";
+
+    await uploadToAI(f);
   };
 
   const onClear = () => {
     setFile(null);
+    setSummaryHtml("");
+    setErrorMsg("");
+
+    // ✅ ยกเลิก request ถ้ายังวิ่ง
+    if (abortRef.current) abortRef.current.abort();
+
     if (inputRef.current) inputRef.current.value = "";
   };
 
@@ -59,9 +138,8 @@ const AISummary = () => {
 
         <main className="profile-content">
           <div className="profile-shell">
-            {/* ✅ Layout container */}
             <div className="ai-layout">
-              {/* ✅ Source panel (LEFT) */}
+              {/* LEFT */}
               <aside className="ai-source-panel">
                 <div className="ai-left-title">AI ช่วยสรุป</div>
                 <div className="ai-left-sub">แหล่งข้อมูล</div>
@@ -98,36 +176,59 @@ const AISummary = () => {
                     </div>
 
                     <div className="ai-file-actions">
-                      <button className="ai-btn ai-btn-ghost" type="button" onClick={onPickFile}>
+                      <button className="ai-btn ai-btn-ghost" type="button" onClick={onPickFile} disabled={isLoading}>
                         เปลี่ยนไฟล์
                       </button>
-                      <button className="ai-btn ai-btn-danger" type="button" onClick={onClear}>
+                      <button className="ai-btn ai-btn-danger" type="button" onClick={onClear} disabled={isLoading}>
                         ลบไฟล์
                       </button>
                     </div>
+
+                    {isLoading && (
+                      <div style={{ marginTop: 10, fontWeight: 800, color: "#0b5394" }}>
+                        กำลังสรุป... (อาจใช้เวลาสักครู่)
+                      </div>
+                    )}
+                    {errorMsg && (
+                      <div style={{ marginTop: 10, fontWeight: 800, color: "#b42318" }}>
+                        {errorMsg}
+                      </div>
+                    )}
                   </div>
                 )}
               </aside>
 
-              {/* ✅ Output panel (RIGHT) */}
+              {/* RIGHT */}
               <section className="ai-output-panel">
-                <div className="ai-greet">
-                  <div className="ai-greet-icon">
-                    <SparkleIcon />
-                  </div>
+                {!summaryHtml && (
+                  <div className="ai-greet">
+                    <div className="ai-greet-icon">
+                      <SparkleIcon />
+                    </div>
 
-                  <div className="ai-greet-text">
-                    <div className="ai-greet-title">
-                      สวัสดี, ฉันคือ AI ที่จะช่วยสรุปเนื้อหาของคุณ
-                    </div>
-                    <div className="ai-greet-sub">
-                      อัปโหลดแหล่งข้อมูลแล้วเริ่มช่วยเหลือได้เลย
+                    <div className="ai-greet-text">
+                      <div className="ai-greet-title">สวัสดี, ฉันคือ AI ที่จะช่วยสรุปเนื้อหาของคุณ</div>
+                      <div className="ai-greet-sub">อัปโหลดแหล่งข้อมูลแล้วเริ่มช่วยเหลือได้เลย</div>
+
+                      {isLoading && (
+                        <div style={{ marginTop: 12, fontWeight: 800, color: "#0b5394" }}>
+                          กำลังประมวลผล OCR + สรุปเนื้อหา...
+                        </div>
+                      )}
+                      {errorMsg && (
+                        <div style={{ marginTop: 12, fontWeight: 800, color: "#b42318" }}>
+                          {errorMsg}
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
+                )}
+
+                {summaryHtml && (
+                  <div className="ai-summary-render" dangerouslySetInnerHTML={{ __html: summaryHtml }} />
+                )}
               </section>
             </div>
-
           </div>
         </main>
       </div>
