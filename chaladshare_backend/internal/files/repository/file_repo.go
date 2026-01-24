@@ -15,10 +15,12 @@ type FileRepository interface {
 	DeleteDocument(id int) error
 
 	GetDocumentOwnerID(documentID int) (int, error)
+	GetDocumentByID(documentID int) (*models.Document, error)
 
 	// summaries
 	GetSummaryByDocID(docID int) (*models.Summary, error)
 	CreateSummary(summary *models.Summary) (*models.Summary, error)
+	DeleteSummariesByDocID(docID int) error
 }
 
 type fileRepository struct {
@@ -118,7 +120,24 @@ func (r *fileRepository) GetDocumentOwnerID(documentID int) (int, error) {
         WHERE document_id = $1
     `, documentID).Scan(&ownerID)
 	if err != nil {
-		return 0, err // sql.ErrNoRows ถ้าไม่พบ
+		return 0, err
 	}
 	return ownerID, nil
+}
+
+func (r *fileRepository) GetDocumentByID(id int) (*models.Document, error) {
+	var d models.Document
+	err := r.db.QueryRow(
+		`SELECT document_id, document_user_id, document_name, document_url, storage_provider, uploaded_at
+		FROM documents
+		WHERE document_id = $1`, id).Scan(&d.DocumentID, &d.DocumentUserID, &d.DocumentName, &d.DocumentURL, &d.StorageProvider, &d.UploadedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &d, nil
+}
+
+func (r *fileRepository) DeleteSummariesByDocID(docID int) error {
+	_, err := r.db.Exec(`DELETE FROM summaries WHERE document_id = $1`, docID)
+	return err
 }

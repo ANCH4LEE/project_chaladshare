@@ -3,6 +3,8 @@ package service
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"chaladshare_backend/internal/files/models"
@@ -88,6 +90,18 @@ func (s *fileService) DeleteFile(documentID int) error {
 	if documentID <= 0 {
 		return errors.New("document_id ไม่ถูกต้อง")
 	}
+
+	doc, err := s.filerepo.GetDocumentByID(documentID)
+	if err != nil {
+		return fmt.Errorf("ไม่พบเอกสาร: %v", err)
+	}
+
+	if strings.EqualFold(doc.StorageProvider, "local") && strings.TrimSpace(doc.DocumentURL) != "" {
+		p := filepath.Clean("." + doc.DocumentURL)
+		_ = os.Remove(p)
+	}
+
+	_ = s.filerepo.DeleteSummariesByDocID(documentID)
 
 	if err := s.filerepo.DeleteDocument(documentID); err != nil {
 		return fmt.Errorf("ไม่สามารถลบไฟล์ได้: %v", err)
