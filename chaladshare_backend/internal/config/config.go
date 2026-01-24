@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -66,6 +67,10 @@ func LoadConfig() (Config, error) {
 }
 
 func (c *Config) GetConnectionString() string {
+	if url := os.Getenv("DATABASE_URL"); url != "" {
+		return url
+	}
+
 	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		c.DatabaseHost,
 		c.DatabasePort,
