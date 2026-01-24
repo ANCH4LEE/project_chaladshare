@@ -11,6 +11,7 @@ import Profile from './pages/Profile';
 import ForgotPassword from './pages/ForgotPassword';
 import EditPost from "./pages/EditPost"; 
 import AISummary from "./pages/AISummary";
+import Helper from './pages/Helper';
 
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
         <Route path="/forgot_password" element={<ForgotPassword />} />
         <Route path="/posts/:id/edit" element={<EditPost />} />  
         <Route path="/ai" element={<AISummary />} />
+        <Route path="/helper" element={<Helper />} />
       </Routes>
     </Router>
   );

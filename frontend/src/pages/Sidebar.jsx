@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { RiUser6Line, RiUserAddLine, RiLogoutCircleRLine, RiHome2Line } from "react-icons/ri";
 import { HiOutlineSparkles } from "react-icons/hi2";
 import { IoMdAddCircleOutline } from "react-icons/io";
+import { TbHelpCircle } from "react-icons/tb";
 
 import "../component/Sidebar.css";
 import logo from "../assets/logo.png";
@@ -23,6 +24,7 @@ const Sidebar = () => {
     if (p === "/profile") return setActiveKey("profile");
     if (p === "/ai") return setActiveKey("ai");
     if (p === "/home") return setActiveKey("home");
+    if (p === "/helper") return setActiveKey("helper");
   }, [location.pathname]);
 
 
@@ -83,11 +85,11 @@ const Sidebar = () => {
         </li>
 
         <li
-          className={activeKey === "profile" ? "active" : ""}
-          onClick={() => go("profile", "/profile")}
+          className={activeKey === "helper" ? "active" : ""}
+          onClick={() => go("helper", "/helper")}
           style={{ cursor: "pointer" }}
         >
-          <RiUser6Line /> ช่วยเหลือ
+          <TbHelpCircle /> คู่มือใช้งาน
         </li>
 
         <li onClick={() => navigate("/")} style={{ cursor: "pointer" }}>

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { IoSearch } from "react-icons/io5";
 import Sidebar from "./Sidebar";
 import axios from "axios";
+import Footer from "../component/Footer";
 import "../component/Friends.css";
 import author2 from "../assets/author2.jpg";
 
@@ -305,6 +306,7 @@ const Friends = () => {
           )}
         </main>
       </div>
+      <Footer />
     </div>
   );
 };

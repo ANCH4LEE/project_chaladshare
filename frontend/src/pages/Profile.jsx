@@ -4,6 +4,7 @@ import { VscEye, VscEyeClosed } from "react-icons/vsc";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import axios from "axios";
 import Sidebar from "./Sidebar";
+import Footer from "../component/Footer";
 import PostCard from "../component/Postcard";
 import Avatar from "../assets/default.png";
 import "../component/Profile.css";
@@ -857,6 +858,7 @@ const Profile = () => {
           </div>
         </main>
       </div>
+      <Footer />
     </div>
   );
 };

@@ -1,6 +1,8 @@
-import "../component/AISummary.css";
 import React, { useRef, useState } from "react";
 import Sidebar from "./Sidebar";
+import Footer from "../component/Footer";
+
+import "../component/AISummary.css";
 
 const UploadIcon = () => (
   <svg width="48" height="48" viewBox="0 0 64 64" aria-hidden="true">
@@ -19,7 +21,7 @@ const SparkleIcon = () => (
   </svg>
 );
 
-// ✅ ngrok เปลี่ยนบ่อย แนะนำย้ายไป .env ทีหลัง
+// ngrok เปลี่ยนบ่อย แนะนำย้ายไป .env ทีหลัง
 const API_URL = "https://unsmarting-kamari-arbored.ngrok-free.dev/summarize";
 
 const AISummary = () => {
@@ -30,13 +32,13 @@ const AISummary = () => {
   const [errorMsg, setErrorMsg] = useState("");
   const [summaryHtml, setSummaryHtml] = useState("");
 
-  // ✅ เก็บ controller สำหรับยกเลิก request ก่อนหน้า
+  // เก็บ controller สำหรับยกเลิก request ก่อนหน้า
   const abortRef = useRef(null);
 
   const onPickFile = () => inputRef.current?.click();
 
   const uploadToAI = async (pdfFile) => {
-    // ✅ ยกเลิก request เก่าถ้ายังวิ่งอยู่
+    // ยกเลิก request เก่าถ้ายังวิ่งอยู่
     if (abortRef.current) {
       abortRef.current.abort();
     }
@@ -49,17 +51,16 @@ const AISummary = () => {
 
     try {
       const formData = new FormData();
-      formData.append("file", pdfFile); // ✅ key = file ให้ตรง FastAPI
+      formData.append("file", pdfFile); // key = file ให้ตรง FastAPI
 
       const res = await fetch(API_URL, {
         method: "POST",
         body: formData,
         signal: controller.signal,
-        credentials: "omit", // ✅ กัน ngrok/cors งอแงบางเคส
+        credentials: "omit", // กัน ngrok/cors งอแงบางเคส
         headers: {
           "ngrok-skip-browser-warning": "true",
           Accept: "application/json",
-          // ❌ อย่าใส่ Content-Type เอง เพราะ browser ต้อง set boundary ให้ FormData
         },
       });
 
@@ -83,11 +84,11 @@ const AISummary = () => {
 
       setSummaryHtml(data?.summary_html || "");
     } catch (err) {
-      // ✅ ถ้ายกเลิกเอง ไม่ต้องโชว์เป็น error
+      // ถ้ายกเลิกเอง ไม่ต้องโชว์เป็น error
       if (err?.name === "AbortError") return;
       setErrorMsg(err?.message || "เกิดข้อผิดพลาดระหว่างอัปโหลด/สรุป");
     } finally {
-      // ✅ เคลียร์เฉพาะตอน controller ตัวนี้ยังเป็นตัวล่าสุด
+      // เคลียร์เฉพาะตอน controller ตัวนี้ยังเป็นตัวล่าสุด
       if (abortRef.current === controller) {
         setIsLoading(false);
       }
@@ -107,7 +108,7 @@ const AISummary = () => {
 
     setFile(f);
 
-    // ✅ กันเคสเลือกไฟล์เดิมซ้ำแล้ว onChange ไม่ยิง
+    //  กันเคสเลือกไฟล์เดิมซ้ำแล้ว onChange ไม่ยิง
     if (inputRef.current) inputRef.current.value = "";
 
     await uploadToAI(f);
@@ -118,7 +119,7 @@ const AISummary = () => {
     setSummaryHtml("");
     setErrorMsg("");
 
-    // ✅ ยกเลิก request ถ้ายังวิ่ง
+    // ยกเลิก request ถ้ายังวิ่ง
     if (abortRef.current) abortRef.current.abort();
 
     if (inputRef.current) inputRef.current.value = "";
@@ -232,6 +233,7 @@ const AISummary = () => {
           </div>
         </main>
       </div>
+      <Footer />
     </div>
   );
 };

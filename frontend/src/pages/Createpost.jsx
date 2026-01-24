@@ -4,6 +4,7 @@ import axios from "axios";
 
 import "../component/Createpost.css";
 import Sidebar from "./Sidebar";
+import Footer from "../component/Footer";
 
 const MAX_FILE_MB = 30; // จำกัดขนาดไฟล์ 10MB
 const ACCEPTED_MIME = ["application/pdf"];
@@ -397,6 +398,7 @@ const CreatePost = () => {
           </div>
         </form>
       </div>
+      <Footer />
     </div>
   );
 };

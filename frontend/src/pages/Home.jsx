@@ -15,6 +15,7 @@ import two from "../assets/two.jpg";
 import three from "../assets/three.jpg";
 
 import "../component/Home.css";
+import Footer from "../component/Footer";
 
 const API_HOST = "http://localhost:8080";
 const toAbsUrl = (p) => {
@@ -264,7 +265,9 @@ const Home = () => {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
+    
   );
 };
 
