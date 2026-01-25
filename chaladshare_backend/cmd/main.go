@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 
 	"chaladshare_backend/internal/config"
 	"chaladshare_backend/internal/connect"
@@ -52,6 +53,12 @@ func TimeoutMiddleware(timeout time.Duration) gin.HandlerFunc {
 }
 
 func main() {
+	_ = godotenv.Load()
+	for _, k := range []string{"SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_STORAGE_BUCKET"} {
+		if os.Getenv(k) == "" {
+			log.Println("WARNING:", k, "is empty")
+		}
+	}
 
 	//config
 	cfg, err := config.LoadConfig()

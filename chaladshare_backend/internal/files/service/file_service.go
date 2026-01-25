@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -11,6 +12,8 @@ import (
 	"chaladshare_backend/internal/files/repository"
 
 	docfeaturesService "chaladshare_backend/internal/docfeatures/service"
+
+	"github.com/google/uuid"
 )
 
 type FileService interface {
@@ -39,18 +42,46 @@ func (s *fileService) UploadFile(req *models.UploadRequest) (*models.UploadRespo
 	if strings.TrimSpace(req.DocumentName) == "" {
 		return nil, errors.New("ต้องระบุชื่อไฟล์")
 	}
-	if strings.TrimSpace(req.DocumentURL) == "" {
+
+	provider := strings.ToLower(strings.TrimSpace(req.StorageProvider))
+	if provider == "" {
+		provider = "local"
+	}
+
+	// local มี URL เหมือนเดิม
+	if provider != "supabase" && strings.TrimSpace(req.DocumentURL) == "" {
 		return nil, errors.New("ต้องระบุ URL ของไฟล์")
 	}
-	if strings.TrimSpace(req.StorageProvider) == "" {
-		req.StorageProvider = "local"
+
+	// supabase ใช้ LocalPath อัปก่อน แล้วค่อยได้ URL
+	if provider == "supabase" {
+		if strings.TrimSpace(req.LocalPath) == "" {
+			return nil, errors.New("ต้องมี LocalPath เพื่ออัปขึ้น Supabase")
+		}
+
+		st, err := NewSupabaseStorageFromEnv()
+		if err != nil {
+			return nil, fmt.Errorf("supabase storage not configured: %v", err)
+		}
+
+		ext := strings.ToLower(filepath.Ext(req.LocalPath))
+		if ext == "" {
+			ext = ".pdf"
+		}
+		objectPath := fmt.Sprintf("documents/%d/%s%s", req.UserID, uuid.NewString(), ext)
+
+		publicURL, err := st.UploadLocalFile(context.Background(), objectPath, req.LocalPath)
+		if err != nil {
+			return nil, fmt.Errorf("อัปขึ้น Supabase ไม่สำเร็จ: %v", err)
+		}
+		req.DocumentURL = publicURL
 	}
 
 	doc := &models.Document{
 		DocumentUserID:  req.UserID,
 		DocumentName:    req.DocumentName,
 		DocumentURL:     req.DocumentURL,
-		StorageProvider: req.StorageProvider,
+		StorageProvider: provider,
 	}
 
 	savedDoc, err := s.filerepo.CreateDocument(doc)
@@ -64,10 +95,16 @@ func (s *fileService) UploadFile(req *models.UploadRequest) (*models.UploadRespo
 
 	pdfPath := req.LocalPath
 	if strings.TrimSpace(pdfPath) == "" {
-
 		pdfPath = "." + savedDoc.DocumentURL
 	}
-	go s.featureSvc.ProcessDocument(savedDoc.DocumentID, pdfPath)
+
+	// ถ้าใช้ temp file (supabase) แนะนำลบหลัง process เสร็จ
+	go func(docID int, path string, cleanup bool) {
+		s.featureSvc.ProcessDocument(docID, path)
+		if cleanup {
+			_ = os.Remove(path)
+		}
+	}(savedDoc.DocumentID, pdfPath, provider == "supabase")
 
 	resp := &models.UploadResponse{
 		Message:    "อัปโหลดไฟล์สำเร็จ",
@@ -96,9 +133,27 @@ func (s *fileService) DeleteFile(documentID int) error {
 		return fmt.Errorf("ไม่พบเอกสาร: %v", err)
 	}
 
+	// local delete
 	if strings.EqualFold(doc.StorageProvider, "local") && strings.TrimSpace(doc.DocumentURL) != "" {
 		p := filepath.Clean("." + doc.DocumentURL)
 		_ = os.Remove(p)
+	}
+
+	// supabase delete
+	if strings.EqualFold(doc.StorageProvider, "supabase") && strings.TrimSpace(doc.DocumentURL) != "" {
+		st, err := NewSupabaseStorageFromEnv()
+		if err != nil {
+			return fmt.Errorf("supabase storage not configured: %v", err)
+		}
+
+		objectPath, ok := st.ObjectPathFromPublicURL(doc.DocumentURL)
+		if !ok {
+			return errors.New("ลบไฟล์ใน Supabase ไม่ได้: แปลง object path จาก DocumentURL ไม่สำเร็จ (แนะนำเพิ่ม document_path ใน DB)")
+		}
+
+		if err := st.Delete(context.Background(), objectPath); err != nil {
+			return fmt.Errorf("ลบไฟล์ใน Supabase ไม่สำเร็จ: %v", err)
+		}
 	}
 
 	_ = s.filerepo.DeleteSummariesByDocID(documentID)
