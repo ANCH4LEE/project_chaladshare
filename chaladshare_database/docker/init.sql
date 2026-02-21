@@ -60,6 +60,23 @@ create table if not exists password_resets (
     reset_pass_expires_at timestamptz not null,                    -- เวลาหมดอายุของการ reset
     used_at               timestamptz                              -- เวลาใช้ reset ไปแล้ว
 );
+-- ตารางยืนยันอีเมลก่อนสมัครสมาชิก (OTP) 888
+create table if not exists email_verifications (
+    verify_id         serial primary key,
+    email             varchar(256) not null,
+    otp_hash          varchar(255) not null,
+    expires_at        timestamptz not null,
+    used_at           timestamptz,
+    created_at        timestamptz default now()
+);
+
+-- กัน query ช้า + กันเคสตัวเล็กใหญ่
+create index if not exists ix_email_verifications_email_ci
+  on email_verifications (lower(email));
+
+create index if not exists ix_email_verifications_active
+  on email_verifications (lower(email), expires_at)
+  where used_at is null;
 
 -------------------------------------------------------------------------------
 -- เพิ่มตารางหัวข้อให้มาก่อน user_interests
@@ -211,6 +228,14 @@ create table if not exists post_stats (
     post_last_activity_at timestamptz default now() -- เวลากิจกรรมล่าสุด
 );
 
+/* 20-02 by ploy */
+CREATE INDEX IF NOT EXISTS idx_likes_post_id
+ON likes (like_post_id);
+
+CREATE INDEX IF NOT EXISTS idx_saved_posts_post_id
+ON saved_posts (save_post_id);
+
+/* 20-02 by ploy */
 
 CREATE EXTENSION IF NOT EXISTS vector;
 

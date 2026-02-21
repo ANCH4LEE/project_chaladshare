@@ -79,6 +79,24 @@
   border: 2px solid #1877f2;
 }
 
+.friends-page .friends-pill--danger {
+  background: #ffe6ea;
+  color: #b42318;
+  border: 1px solid #f7dadf;
+}
+
+.friends-page .friends-pill--danger:hover {
+  filter: brightness(0.98);
+}
+
+.friends-page .friends-actions-right{
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+
+
 /* ===== ช่องค้นหา (Fix ตกขอบ) ===== */
 .friends-page .friends-search {
   position: relative;
@@ -175,6 +193,24 @@
   text-align: center;
   color: #8a94a6;
   padding: 28px 8px;
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e75480;
+  cursor: pointer;
+  font-size: 22px;
+  transition: 0.25s;
+  margin-right: 15px;
+  background: transparent;
+  border: none;
+}
+
+.back-btn:hover {
+  color: #ff7b9c;
+  transform: scale(1.1);
 }
 
 /* ===== Responsive ===== */

@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"chaladshare_backend/internal/friends/models"
 	"chaladshare_backend/internal/friends/service"
@@ -130,6 +131,37 @@ func (h *FriendHandler) ListFriends(c *gin.Context) {
 		"items": items, "total": total, "page": page, "size": size,
 	})
 }
+
+/* 20-02 by ploy */
+
+func (h *FriendHandler) SearchAddFriend(c *gin.Context) {
+	actorID, ok := getUID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	search := strings.TrimSpace(c.DefaultQuery("search", ""))
+	page, size := parsePageSize(c)
+
+	items, total, err := h.friendservice.SearchAddFriend(
+		c.Request.Context(),
+		actorID,
+		search,
+		page,
+		size,
+	)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": items, "total": total, "page": page, "size": size,
+	})
+}
+
+/* 20-02 by ploy */
 
 func (h *FriendHandler) ListFollowers(c *gin.Context) {
 	viewerID, ok := getUID(c)

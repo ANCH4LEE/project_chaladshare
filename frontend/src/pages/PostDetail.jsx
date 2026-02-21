@@ -10,12 +10,15 @@ import Avatar from "../assets/default.png";
 import "../component/PostDetail.css";
 
 const API_HOST = "http://localhost:8080";
+// const API_ORIGIN =
+//   process.env.REACT_APP_API_ORIGIN || window.location.origin;
 
 const toAbsUrl = (p) => {
   if (!p) return "";
   if (p.startsWith("http")) return p;
   const clean = p.replace(/^\./, "");
   return `${API_HOST}${clean.startsWith("/") ? clean : `/${clean}`}`;
+  // return `${API_ORIGIN}${path}`;
 };
 
 const PostDetail = () => {
@@ -30,54 +33,65 @@ const PostDetail = () => {
   const [err, setErr] = useState("");
 
   useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        setErr("");
-        const res = await axios.get(`/posts/${id}`);
-        const payload = res?.data?.data ?? res?.data ?? {};
-        const data = payload?.post ?? payload ?? {};
+  (async () => {
+    try {
+      setLoading(true);
+      setErr("");
 
-        if (!data || (!data.post_id && !data.id)) {
-          setErr("ไม่พบโพสต์");
-          return;
-        }
+      const res = await axios.get(`/posts/${id}`, { withCredentials: true });
+      const payload = res?.data?.data ?? res?.data ?? {};
+      const data = payload?.post ?? payload ?? {};
 
-        const avatarRaw = data.avatar_url || "";
-        const hasRealAvatar = avatarRaw.startsWith("/uploads/");
-        const authorImg = hasRealAvatar ? toAbsUrl(avatarRaw) : Avatar;
-
-        const mapped = {
-          id: data.post_id,
-          title: data.post_title,
-          description: data.post_description,
-          visibility: data.post_visibility,
-          file_url: data.file_url ? toAbsUrl(data.file_url) : null,
-          author_name: data.author_name,
-          author_id: data.author_id,
-          authorImg,
-          like_count: data.like_count,
-          is_liked: data.is_liked,
-          is_saved: data.is_saved,
-          tags: data.tags || [],
-          post_document_id: data.post_document_id,
-        };
-
-        setPost(mapped);
-        setLikes(mapped.like_count || 0);
-        setLiked(!!mapped.is_liked);
-        setSaved(!!mapped.is_saved);
-      } catch (e) {
-        const st = e?.response?.status;
-        if (st === 403) setErr("คุณไม่มีสิทธิ์ดูโพสต์นี้");
-        else if (st === 404) setErr("ไม่พบโพสต์");
-        else
-          setErr(e?.response?.data?.error || e.message || "โหลดโพสต์ล้มเหลว");
-      } finally {
-        setLoading(false);
+      if (!data || (!data.post_id && !data.id)) {
+        setErr("ไม่พบโพสต์");
+        return;
       }
-    })();
-  }, [id, navigate]);
+
+      const avatarRaw = data.avatar_url || data.AvatarURL || "";
+      const authorImg = avatarRaw ? toAbsUrl(avatarRaw) : Avatar;
+
+      const rawFile =
+        data.file_url || data.document_url || data.document_file_url || "";
+
+      const mapped = {
+        id: data.post_id ?? data.id,
+        title: data.post_title ?? data.title ?? "",
+        description: data.post_description ?? data.description ?? "",
+        visibility: data.post_visibility ?? data.visibility ?? "public",
+        file_url: rawFile ? toAbsUrl(rawFile) : null,
+
+        author_name: data.author_name ?? data.authorName ?? "",
+        author_id: data.author_id ?? data.author_user_id ?? data.post_author_user_id,
+
+        authorImg,
+
+        like_count: data.like_count ?? data.post_like_count ?? 0,
+        is_liked: !!(data.is_liked ?? data.isLiked),
+        is_saved: !!(data.is_saved ?? data.isSaved),
+
+        tags: data.tags || [],
+        post_document_id: data.post_document_id ?? data.document_id,
+      };
+
+      setPost(mapped);
+      setLikes(mapped.like_count || 0);
+      setLiked(!!mapped.is_liked);
+      setSaved(!!mapped.is_saved);
+    } catch (e) {
+      const st = e?.response?.status;
+      if (st === 401) {
+        navigate("/login", { replace: true });
+        return;
+      }
+      if (st === 403) setErr("คุณไม่มีสิทธิ์ดูโพสต์นี้");
+      else if (st === 404) setErr("ไม่พบโพสต์");
+      else setErr(e?.response?.data?.error || e.message || "โหลดโพสต์ล้มเหลว");
+    } finally {
+      setLoading(false);
+    }
+  })();
+}, [id, navigate]);
+
 
   // Like แบบเดียวกับการ์ด Home (optimistic + ไม่ revert UI)
   const toggleLike = async (e) => {

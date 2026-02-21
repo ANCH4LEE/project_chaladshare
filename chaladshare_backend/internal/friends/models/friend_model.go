@@ -92,6 +92,16 @@ type FollowUser struct {
 	IsFollowing bool   `json:"is_following"`
 }
 
+/* 20-02 by ploy */
+
+type UserSearchItem struct {
+	UserID   int    `json:"user_id"`
+	Username string `json:"username"`
+	Avatar   string `json:"avatar"`
+}
+
+/* 20-02 by ploy */
+
 func (r *CreateFollowRequest) Validate(actorID int) error {
 	if r.FollowedUserID == actorID {
 		return ErrInvalidSelfAction

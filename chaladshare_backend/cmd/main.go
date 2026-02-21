@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -52,15 +53,37 @@ func TimeoutMiddleware(timeout time.Duration) gin.HandlerFunc {
 	}
 }
 
+func parseAllowOrigins(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return []string{
+			"http://localhost:3000",
+			"http://127.0.0.1:3000",
+		}
+	}
+
+	// รองรับได้ทั้ง "a,b,c" หรือ "a"
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 func main() {
 	_ = godotenv.Load()
+
 	for _, k := range []string{"SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_STORAGE_BUCKET"} {
 		if os.Getenv(k) == "" {
 			log.Println("WARNING:", k, "is empty")
 		}
 	}
 
-	//config
+	// config
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
@@ -73,19 +96,22 @@ func main() {
 		log.Println("COLAB_URL =", os.Getenv("COLAB_URL"))
 	}
 
-	//connet DB
+	// connect DB
 	db, err := connectdb.NewPostgresDatabase(cfg.GetConnectionString())
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
 
-	//auth
+	// ✅ cookie secure flag (Railway/Vercel ต้อง true)
+	secureCookie := strings.ToLower(os.Getenv("COOKIE_SECURE")) == "true"
+
+	// auth
 	authRepository := AuthRepo.NewAuthRepository(db.GetDB())
 	authService := AuthService.NewAuthService(authRepository, []byte(cfg.JWTSecret), cfg.TokenTTLMinutes)
-	authHandler := AuthHandler.NewAuthHandler(authService, cfg.CookieName, false)
+	authHandler := AuthHandler.NewAuthHandler(authService, cfg.CookieName, secureCookie)
 
-	//friends
+	// friends
 	friendsRepo := FriendsRepo.NewFriendRepository(db.GetDB())
 	friendsService := FriendsService.NewFriendService(friendsRepo)
 	friendsHandler := FriendsHandler.NewFriendHandler(friendsService)
@@ -100,12 +126,12 @@ func main() {
 	featureRepository := FeatureRepo.NewFeatureRepo(db.GetDB())
 	featureService := FeatureService.NewFeatureService(featureRepository, aiClient)
 
-	//file
+	// file
 	fileRepository := FileRepo.NewFileRepository(db.GetDB())
 	fileService := FileService.NewFileService(fileRepository, featureService)
 	fileHandler := FileHandler.NewFileHandler(fileService)
 
-	//post like save
+	// post like save
 	postRepository := PostRepo.NewPostRepository(db.GetDB())
 	postService := PostService.NewPostService(postRepository, friendsService)
 
@@ -122,7 +148,7 @@ func main() {
 	userService := UserService.NewUserService(userRepository)
 	userHandler := UserHandler.NewUserHandler(userService, postService, friendsService)
 
-	//recommend
+	// recommend
 	recommendRepo := RecommendRepo.NewRecommendRepo(db.GetDB())
 	recommendService := RecommendService.NewRecommendService(recommendRepo)
 	recommendHandler := RecommendHandler.NewRecommendHandler(recommendService)
@@ -144,8 +170,20 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
+	r.GET("/", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"status":  "ok",
+			"service": "ChaladShare backend",
+		})
+	})
+
+	// ✅ allow origins (รองรับหลายโดเมน)
+	// ใช้ cfg.AllowOrigin เดิมได้ แต่แนะนำให้ทำให้มันเป็น csv ได้ เช่น:
+	// ALLOW_ORIGIN="http://localhost:3000,https://xxx.vercel.app"
+	allowOrigins := parseAllowOrigins(os.Getenv("ALLOW_ORIGIN"))
+
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{cfg.AllowOrigin},
+		AllowOrigins:     allowOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Accept"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -154,12 +192,22 @@ func main() {
 	}))
 
 	r.Use(TimeoutMiddleware(180 * time.Second))
+
 	r.MaxMultipartMemory = 100 << 20
+	// uploadDir := os.Getenv("UPLOAD_DIR")
+	// if uploadDir == "" {
+	// 	uploadDir = "/tmp/uploads"
+	// }
+	// if err := os.MkdirAll(uploadDir, 0755); err != nil {
+	// 	log.Printf("WARNING: cannot create upload dir (%s): %v", uploadDir, err)
+	// }
+	// r.Static("/uploads", uploadDir)
+
 	r.Static("/uploads", "./uploads")
 
-	if err := os.MkdirAll("uploads", 0755); err != nil {
-		log.Fatalf("cannot create uploads dir: %v", err)
-	}
+	// 	if err := os.MkdirAll("uploads", 0755); err != nil {
+	// 		log.Fatalf("cannot create uploads dir: %v", err)
+	// 	}
 
 	r.GET("/health", func(c *gin.Context) {
 		if err := connectdb.CheckDBConnection(db.GetDB()); err != nil {
@@ -171,22 +219,26 @@ func main() {
 
 	v1 := r.Group("/api/v1")
 
-	//login register
+	// login register
 	authRoutes := v1.Group("/auth")
 	{
 		authRoutes.POST("/register", authHandler.Register)
 		authRoutes.POST("/login", authHandler.Login)
 		authRoutes.POST("/logout", authHandler.Logout)
 
+		authRoutes.POST("/forgot-password", authHandler.ForgotPassword)
+		authRoutes.POST("/forgot-password/verify-otp", authHandler.VerifyForgotPasswordOTP) // ✅ เพิ่มบรรทัดนี้
+		authRoutes.POST("/reset-password", authHandler.ResetPassword)
+
 		authRoutes.GET("/users", authHandler.GetAllUsers)
 		authRoutes.GET("/users/:id", authHandler.GetUserByID)
+		authRoutes.POST("/register/request-otp", authHandler.RequestRegisterOTP)
+		authRoutes.POST("/register/confirm-otp", authHandler.ConfirmVerifyEmailOTP)
 	}
-
 	// Protected (ต้องมี JWT)
 	protected := v1.Group("/")
 	protected.Use(middleware.JWT([]byte(cfg.JWTSecret), cfg.CookieName))
 	{
-		// Post
 		posts := protected.Group("/posts")
 		{
 			posts.GET("", postHandler.GetAllPosts)
@@ -199,9 +251,13 @@ func main() {
 			posts.POST("/:id/like", postHandler.ToggleLike)
 			posts.POST("/:id/save", postHandler.ToggleSave)
 			posts.GET("/save", postHandler.GetSavedPosts)
+			/* 20-02 by ploy */
+			posts.GET("/popular", postHandler.GetPopularPosts)
+			posts.GET("/search", postHandler.SearchPosts)
+			/* 20-02 by ploy */
+
 		}
 
-		// Files
 		files := protected.Group("/files")
 		{
 			files.POST("/doc", fileHandler.UploadFile)
@@ -213,7 +269,6 @@ func main() {
 			files.POST("/avatar", fileHandler.UploadAvatar)
 		}
 
-		//Profile
 		profile := protected.Group("/profile")
 		{
 			profile.GET("", userHandler.GetOwnProfile)
@@ -223,19 +278,15 @@ func main() {
 
 		social := protected.Group("/social")
 		{
-			// follow / unfollow
 			social.POST("/follow", friendsHandler.FollowUser)
 			social.DELETE("/follow/:id", friendsHandler.UnfollowUser)
 
-			// lists
 			social.GET("/friends/:id", friendsHandler.ListFriends)
 			social.GET("/followers/:id", friendsHandler.ListFollowers)
 			social.GET("/following/:id", friendsHandler.ListFollowing)
 
-			// counters
 			social.GET("/stats/:id", friendsHandler.GetStats)
 
-			// friend requests
 			social.POST("/requests", friendsHandler.SendFriendRequest)
 			social.GET("/requests/incoming", friendsHandler.ListIncomingRequests)
 			social.GET("/requests/outgoing", friendsHandler.ListOutgoingRequests)
@@ -243,11 +294,13 @@ func main() {
 			social.POST("/requests/:id/decline", friendsHandler.DeclineFriendRequest)
 			social.DELETE("/requests/:id", friendsHandler.CancelFriendRequest)
 
-			// unfriend
 			social.DELETE("/friends/:id", friendsHandler.Unfriend)
+			/* 20-02 by ploy */
+			social.GET("/addfriends", friendsHandler.SearchAddFriend)
+			/* 20-02 by ploy */
+
 		}
 
-		// Recommend
 		recommend := protected.Group("/recommend")
 		{
 			recommend.GET("", recommendHandler.GetRecommend)
@@ -261,6 +314,7 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
+
 	if err := r.Run(":" + port); err != nil {
 		log.Fatalf("Failed to run server: %v", err)
 	}

@@ -37,6 +37,15 @@ type FriendRepository interface {
 
 	// Helper
 	AreFriends(ctx context.Context, aID, bID int) (bool, error)
+
+	/* 20-02 by ploy */
+
+	// Search to Add friend
+	SearchAddFriend(ctx context.Context, actorID int, search string, limit, offset int) ([]models.UserSearchItem, error)
+	CountAddFriend(ctx context.Context, actorID int, search string) (int, error)
+
+	/* 20-02 by ploy */
+
 }
 
 type friendrepo struct {
@@ -438,4 +447,84 @@ func (r *friendrepo) AreFriends(ctx context.Context, aID, bID int) (bool, error)
 		return false, nil
 	}
 	return err == nil, err
+}
+
+/* 20-02 by ploy */
+
+func (r *friendrepo) SearchAddFriend(ctx context.Context, actorID int, search string, limit, offset int) ([]models.UserSearchItem, error) {
+	const q = `
+	SELECT
+	  u.user_id,
+	  u.username,
+	  COALESCE(p.avatar_url,'') AS avatar
+	FROM users u
+	LEFT JOIN user_profiles p ON p.profile_user_id = u.user_id
+	WHERE u.user_id <> $1
+	  AND ($2 = '' OR u.username_ci LIKE '%' || lower($2) || '%')
+
+	  -- no are friends
+	  AND NOT EXISTS (
+		SELECT 1 FROM friendships fs
+		WHERE fs.user_id = LEAST($1::int, u.user_id)
+		  AND fs.friend_id = GREATEST($1::int, u.user_id)
+	  )
+
+	  -- no pending request
+	  AND NOT EXISTS (
+	    SELECT 1 FROM friend_requests fr
+	    WHERE (
+	      (fr.requester_user_id = $1 AND fr.addressee_user_id = u.user_id)
+	      OR
+	      (fr.requester_user_id = u.user_id AND fr.addressee_user_id = $1)
+	    )
+	    AND fr.request_status = 'pending'::friend_request_status
+	  )
+	ORDER BY u.username ASC, u.user_id ASC
+	LIMIT $3 OFFSET $4;
+	`
+
+	rows, err := r.db.QueryContext(ctx, q, actorID, search, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []models.UserSearchItem{}
+	for rows.Next() {
+		var it models.UserSearchItem
+		if err := rows.Scan(&it.UserID, &it.Username, &it.Avatar); err != nil {
+			return nil, err
+		}
+		out = append(out, it)
+	}
+	return out, rows.Err()
+}
+
+func (r *friendrepo) CountAddFriend(ctx context.Context, actorID int, search string) (int, error) {
+	const q = `
+	SELECT COUNT(*)
+	FROM users u
+	WHERE u.user_id <> $1
+	  AND ($2 = '' OR u.username_ci LIKE '%' || lower($2) || '%')
+
+	  AND NOT EXISTS (
+		SELECT 1 FROM friendships fs
+		WHERE fs.user_id = LEAST($1::int, u.user_id)
+		  AND fs.friend_id = GREATEST($1::int, u.user_id)
+	  )
+
+	   AND NOT EXISTS (
+	    SELECT 1 FROM friend_requests fr
+	    WHERE (
+	      (fr.requester_user_id = $1 AND fr.addressee_user_id = u.user_id)
+	      OR
+	      (fr.requester_user_id = u.user_id AND fr.addressee_user_id = $1)
+	    )
+	    AND fr.request_status = 'pending'::friend_request_status
+	  );
+	`
+
+	var n int
+	err := r.db.QueryRowContext(ctx, q, actorID, search).Scan(&n)
+	return n, err
 }

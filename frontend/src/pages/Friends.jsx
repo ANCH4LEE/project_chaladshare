@@ -2,13 +2,17 @@
 
 import React, { useEffect, useState } from "react";
 import { IoSearch } from "react-icons/io5";
+import { useNavigate } from "react-router-dom";
+import { FaArrowLeft } from "react-icons/fa";
 import Sidebar from "./Sidebar";
 import axios from "axios";
 import Footer from "../component/Footer";
+import picdefault from "../assets/default.png";
 import "../component/Friends.css";
-import author2 from "../assets/author2.jpg";
 
 const API_HOST = "http://localhost:8080";
+// const API_ORIGIN = process.env.REACT_APP_API_ORIGIN || window.location.origin;
+
 const toAbsUrl = (p) => {
   if (!p) return "";
   if (p.startsWith("http")) return p;
@@ -18,7 +22,7 @@ const toAbsUrl = (p) => {
 
 const Friends = () => {
   const [ownerId, setOwnerId] = useState(null);
-  const [activeTab, setActiveTab] = useState("my"); 
+  const [activeTab, setActiveTab] = useState("my");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const size = 20;
@@ -27,6 +31,13 @@ const Friends = () => {
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [incoming, setIncoming] = useState([]);
   const [loadingReq, setLoadingReq] = useState(false);
+
+  //Add friend
+  const [addQuery, setAddQuery] = useState("");
+  const [addPage, setAddPage] = useState(1);
+  const [addUsers, setAddUsers] = useState([]);
+  const [addTotal, setAddTotal] = useState(0);
+  const [loadingAdd, setLoadingAdd] = useState(false);
 
   useEffect(() => {
     const fetchMe = async () => {
@@ -105,6 +116,39 @@ const Friends = () => {
     }
   };
 
+  const fetchAddFriends = async (q = addQuery, p = addPage) => {
+    const qq = (q || "").trim();
+    if (qq.length === 0) {
+      setAddUsers([]);
+      setAddTotal(0);
+      return;
+    }
+    setLoadingAdd(true);
+    try {
+      const { data } = await axios.get(`/social/addfriends`, {
+        params: { search: qq, page: p, size },
+      });
+      setAddUsers(data.items || []);
+      setAddTotal(data.total || 0);
+    } catch (e) {
+      console.error("add-friends:", e);
+      alert("ค้นหาเพื่อนไม่สำเร็จ");
+    } finally {
+      setLoadingAdd(false);
+    }
+  };
+
+  const sendRequest = async (targetId) => {
+    try {
+      await axios.post(`/social/requests`, { to_user_id: targetId });
+      setAddUsers((prev) => prev.filter((u) => u.user_id !== targetId));
+      setAddTotal((t) => Math.max(0, t - 1));
+    } catch (e) {
+      console.error("sendRequest:", e);
+      alert("ส่งคำขอเป็นเพื่อนไม่สำเร็จ");
+    }
+  };
+
   useEffect(() => {
     if (ownerId) {
       fetchIncoming();
@@ -116,18 +160,66 @@ const Friends = () => {
     if (!ownerId) return;
     if (activeTab === "my") fetchFriends();
     if (activeTab === "requests") fetchIncoming();
-  }, [activeTab]);
+    if (activeTab === "add") {
+      setAddQuery("");
+      setAddUsers([]);
+      setAddTotal(0);
+      setAddPage(1);
+    }
+  }, [activeTab, ownerId]);
 
   useEffect(() => {
     if (activeTab !== "my" || !ownerId) return;
     const t = setTimeout(() => {
+      const q = query.trim();
       setPage(1);
-      fetchFriends(query, 1);
+      fetchFriends(q, 1);
     }, 300);
     return () => clearTimeout(t);
-  }, [query]);
+  }, [query, ownerId, activeTab]);
+
+  useEffect(() => {
+    if (!ownerId) return;
+    if (activeTab !== "add") return;
+
+    const t = setTimeout(() => {
+      const q = addQuery.trim();
+
+      if (q.length === 0) {
+        setAddUsers([]);
+        setAddTotal(0);
+        setAddPage(1);
+        return;
+      }
+
+      if (addPage === 1) {
+        fetchAddFriends(q, 1);
+      } else {
+        setAddPage(1);
+      }
+    }, 300);
+
+    return () => clearTimeout(t);
+  }, [addQuery, ownerId, activeTab]);
+
+  useEffect(() => {
+    if (!ownerId) return;
+    if (activeTab !== "my") return;
+    fetchFriends(query, page);
+  }, [page]);
+
+  useEffect(() => {
+    if (!ownerId) return;
+    if (activeTab !== "add") return;
+
+    const q = addQuery.trim();
+    if (q.length === 0) return;
+
+    fetchAddFriends(q, addPage);
+  }, [addPage, ownerId, activeTab]);
 
   const totalPages = Math.max(1, Math.ceil(totalFriends / size));
+  const navigate = useNavigate();
 
   return (
     <div className="friends-page">
@@ -138,7 +230,23 @@ const Friends = () => {
           {/* ===== Top bar: หัวข้อ + ปุ่ม + ค้นหา ===== */}
           <div className="friends-topbar">
             <div className="friends-top-left">
-              <h2 className="friends-title">เพื่อนของฉัน</h2>
+              {(activeTab === "add" || activeTab === "requests") && (
+                <button
+                  type="button"
+                  className="back-btn"
+                  onClick={() => setActiveTab("my")}
+                  aria-label="ย้อนกลับ"
+                >
+                  {" "}
+                  <FaArrowLeft />{" "}
+                </button>
+              )}
+
+              <h2 className="friends-title">
+                {activeTab === "my" && "เพื่อนของฉัน"}
+                {activeTab === "add" && "เพิ่มเพื่อน"}
+                {activeTab === "requests" && "คำขอเป็นเพื่อน"}
+              </h2>
 
               <div className="friends-actions">
                 <button
@@ -163,20 +271,26 @@ const Friends = () => {
               </div>
             </div>
 
-            {activeTab === "my" && (
+            {(activeTab === "my" || activeTab === "add") && (
               <div className="friends-search">
                 <input
                   type="text"
-                  placeholder="ค้นหาเพื่อน"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={
+                    activeTab === "my"
+                      ? "ค้นหาเพื่อน"
+                      : "ค้นหา username เพื่อเพิ่มเพื่อน"
+                  }
+                  value={activeTab === "my" ? query : addQuery}
+                  onChange={(e) => {
+                    if (activeTab === "my") setQuery(e.target.value);
+                    else setAddQuery(e.target.value);
+                  }}
                 />
                 <IoSearch className="friends-search-icon" />
               </div>
             )}
           </div>
 
-          {/* ===== รายการเพื่อน (แท็บ my) ===== */}
           {/* ===== รายการเพื่อน (แท็บ my) ===== */}
           {activeTab === "my" && (
             <>
@@ -191,9 +305,9 @@ const Friends = () => {
                         <div className="friends-left">
                           <img
                             className="friends-avatar"
-                            src={toAbsUrl(f.avatar) || author2}
+                            src={toAbsUrl(f.avatar) || picdefault}
                             alt={`${f.username || f.user_id} avatar`}
-                            onError={(e) => (e.currentTarget.src = author2)}
+                            onError={(e) => (e.currentTarget.src = picdefault)}
                           />
                           <div className="friends-name">
                             <span className="friends-name-main">
@@ -210,7 +324,7 @@ const Friends = () => {
                         </button>
                       </li>
                     ))}
-                    {friends.length === 0 && (
+                    {!loadingFriends && friends.length === 0 && (
                       <div className="friends-placeholder">
                         ไม่มีเพื่อนที่ตรงกับคำค้น
                       </div>
@@ -256,22 +370,14 @@ const Friends = () => {
                           className="friends-avatar"
                           src={
                             toAbsUrl(r.avatar) ||
-                            author2 /* ถ้า backend ใช้ avatar_url → เปลี่ยนเป็น r.avatar_url */
+                            picdefault /* ถ้า backend ใช้ avatar_url → เปลี่ยนเป็น r.avatar_url */
                           }
                           alt={`req-${r.request_id}`}
-                          onError={(e) => (e.currentTarget.src = author2)}
+                          onError={(e) => (e.currentTarget.src = picdefault)}
                         />
                         <div className="friends-name">
                           <span className="friends-name-main">
                             {r.username || `user#${r.requester_user_id}`}
-                          </span>
-                          <span className="friends-name-sub">
-                            ขอเป็นเพื่อน •{" "}
-                            {new Date(
-                              r.requested_at ||
-                                r.request_created_at ||
-                                Date.now()
-                            ).toLocaleDateString()}
                           </span>
                         </div>
                       </div>
@@ -284,7 +390,7 @@ const Friends = () => {
                           ยอมรับ
                         </button>
                         <button
-                          className="friends-pill friends-pill--outline"
+                          className="friends-pill friends-pill--danger"
                           onClick={() => declineRequest(r.request_id)}
                         >
                           ปฏิเสธ
@@ -302,7 +408,52 @@ const Friends = () => {
             </>
           )}
           {activeTab === "add" && (
-            <div className="friends-placeholder">หน้าค้นหา/เพิ่มเพื่อน</div>
+            <>
+              {loadingAdd && (
+                <div className="friends-placeholder">กำลังค้นหา...</div>
+              )}
+
+              {!loadingAdd && addQuery.trim().length === 0 && (
+                <div className="friends-placeholder">
+                  พิมพ์ username เพื่อค้นหาผู้ใช้ที่ต้องการเพิ่มเป็นเพื่อน
+                </div>
+              )}
+
+              {!loadingAdd && addQuery.trim().length > 0 && (
+                <ul className="friends-list">
+                  {addUsers.map((u) => (
+                    <li key={u.user_id} className="friends-item">
+                      <div className="friends-left">
+                        <img
+                          className="friends-avatar"
+                          src={toAbsUrl(u.avatar) || picdefault}
+                          alt={`${u.username || u.user_id} avatar`}
+                          onError={(e) => (e.currentTarget.src = picdefault)}
+                        />
+                        <div className="friends-name">
+                          <span className="friends-name-main">
+                            {u.username || `user#${u.user_id}`}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        className="friends-pill friends-pill--green"
+                        onClick={() => sendRequest(u.user_id)}
+                      >
+                        เพิ่มเพื่อน
+                      </button>
+                    </li>
+                  ))}
+
+                  {addUsers.length === 0 && (
+                    <div className="friends-placeholder">
+                      ไม่พบผู้ใช้ที่ตรงกับคำค้น
+                    </div>
+                  )}
+                </ul>
+              )}
+            </>
           )}
         </main>
       </div>

@@ -9,9 +9,12 @@ import CreatePost from './pages/Createpost';
 import Friends from './pages/Friends';
 import Profile from './pages/Profile';
 import ForgotPassword from './pages/ForgotPassword';
-import EditPost from "./pages/EditPost"; 
+import EditPost from "./pages/EditPost";
 import AISummary from "./pages/AISummary";
 import Helper from './pages/Helper';
+import VerifyOTP from "./pages/VerifyOTP";
+import NewPassword from "./pages/NewPassword";
+
 
 
 function App() {
@@ -27,9 +30,11 @@ function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/profile/:id" element={<Profile />} />
         <Route path="/forgot_password" element={<ForgotPassword />} />
-        <Route path="/posts/:id/edit" element={<EditPost />} />  
+        <Route path="/posts/:id/edit" element={<EditPost />} />
         <Route path="/ai" element={<AISummary />} />
         <Route path="/helper" element={<Helper />} />
+        <Route path="/verify-otp" element={<VerifyOTP />} />
+        <Route path="/new-password" element={<NewPassword />} />
       </Routes>
     </Router>
   );

@@ -115,7 +115,7 @@ func (h *PostHandler) GetPostByID(c *gin.Context) {
 		return
 	}
 
-	post, err := h.postService.GetPostByID(id)
+	post, err := h.postService.GetPostByIDForViewer(uid, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -285,6 +285,80 @@ func (h *PostHandler) ToggleSave(c *gin.Context) {
 			"post_id":    postID,
 			"is_saved":   isSaved,
 			"save_count": saveCount,
+		},
+	})
+}
+
+func (h *PostHandler) GetPopularPosts(c *gin.Context) {
+	uid := c.GetInt("user_id")
+	if uid == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	limitStr := c.DefaultQuery("limit", "3")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit"})
+		return
+	}
+
+	posts, err := h.postService.GetPopularPosts(uid, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": posts})
+}
+
+func (h *PostHandler) SearchPosts(c *gin.Context) {
+	uid := c.GetInt("user_id")
+	if uid == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	search := strings.TrimSpace(c.Query("search"))
+
+	if search == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"data": gin.H{
+				"items": []models.PostResponse{},
+				"total": 0,
+				"page":  1,
+				"size":  20,
+			},
+		})
+		return
+	}
+
+	pageStr := c.DefaultQuery("page", "1")
+	sizeStr := c.DefaultQuery("size", "20")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	size, err := strconv.Atoi(sizeStr)
+	if err != nil || size <= 0 || size > 100 {
+		size = 20
+	}
+
+	items, total, err := h.postService.SearchPosts(uid, search, page, size)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": gin.H{
+			"items":  items,
+			"total":  total,
+			"page":   page,
+			"size":   size,
+			"search": search,
 		},
 	})
 }

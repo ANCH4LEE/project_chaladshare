@@ -29,7 +29,7 @@ func (c *Client) ExtractFeatures(documentID int, pdfPath string) (*ExtractResp, 
 	defer cancel()
 
 	//ส่งไฟล์ผ่าน helper ใน client.go
-	resp, err := c.postPDF(ctx, "/extract_features", documentID, pdfPath)
+	resp, err := c.postPDFWithField(ctx, "/extract", documentID, pdfPath, "file")
 	if err != nil {
 		return nil, err
 	}
@@ -65,8 +65,13 @@ func (c *Client) ExtractFeatures(documentID int, pdfPath string) (*ExtractResp, 
 		return nil, fmt.Errorf("invalid style vector v16 len=%d (want 16)", len(out.StyleVectorV16))
 	}
 
+	labelStr := "nil"
+	if out.StyleLabel != nil {
+		labelStr = *out.StyleLabel
+	}
+
 	log.Printf("[COLAB][EXTRACT] OK time=%s doc=%d label=%v vec_len=%d",
-		time.Since(start), out.DocumentID, out.StyleLabel, len(out.StyleVectorV16))
+		time.Since(start), out.DocumentID, labelStr, len(out.StyleVectorV16))
 
 	return &out, nil
 }

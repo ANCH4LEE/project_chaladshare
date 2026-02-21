@@ -23,14 +23,17 @@
   padding: 2rem 2.5rem;
   border-radius: 15px;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-  width: 380px; 
+  width: 380px;
   text-align: center;
+
+  position: relative; /* ✅ เพิ่มบรรทัดนี้ */
+
 }
 
 /* logo */
 .login-page .login-box img,
-.register-page .login-box img  {
-  width: 160px;       
+.register-page .login-box img {
+  width: 160px;
   height: auto;
   margin: 0 auto 10px auto;
   display: block;
@@ -52,19 +55,21 @@
 }
 
 .login-page .input-group input,
-.register-page .input-group input{
+.register-page .input-group input {
   width: 100%;
-  padding: 12px 45px; /* padding เผื่อทั้งซ้าย-ขวา */
+  padding: 12px 45px;
+  /* padding เผื่อทั้งซ้าย-ขวา */
   border: 1px solid #ccc;
   border-radius: 10px;
   font-size: 14px;
-  background-color: #f7f8fa; /* สีอ่อนคล้ายตัวอย่าง */
+  background-color: #f7f8fa;
+  /* สีอ่อนคล้ายตัวอย่าง */
   outline: none;
   transition: border 0.2s;
 }
 
 .login-page .input-group .icon,
-.register-page .input-group .icon{
+.register-page .input-group .icon {
   border-color: #027cbb;
   background-color: #fff;
 }
@@ -86,7 +91,7 @@
 .register-page .input-group .icon-right {
   position: absolute;
   top: 50%;
-  right: -60px; 
+  right: -60px;
   transform: translateY(-50%);
   color: #666;
   font-size: 18px;
@@ -101,8 +106,9 @@
 }
 
 /* ปุ่ม login/register */
-.login-page .login-box button,
-.register-page .login-box button {
+/* ✅ ปุ่มหลัก (submit) เท่านั้น */
+.login-page .login-box button[type="submit"],
+.register-page .login-box button[type="submit"]{
   width: 100%;
   padding: 0.7rem;
   margin-top: 10px;
@@ -115,15 +121,19 @@
   font-size: 15px;
 }
 
-.login-page .login-box button:hover,
-.register-page .login-box button:hover {
+
+.login-page .login-box button[type="submit"]:hover,
+.register-page .login-box button[type="submit"]:hover{
   background-color: #026ba5;
 }
 
+
 /* ---- ลืมรหัสผ่าน (เฉพาะหน้า Login) ---- */
 .login-page .forgot-password {
-  width: 100%; /* ให้เท่ากับ input-group */
-  text-align: right; /* ชิดขวา */
+  width: 100%;
+  /* ให้เท่ากับ input-group */
+  text-align: right;
+  /* ชิดขวา */
 }
 
 .login-page .forgot-password a {
@@ -174,3 +184,13 @@ input[type="password"]::-webkit-password-toggle-button {
   pointer-events: none;
   opacity: 0;
 }
+
+.login-page .login-box .back-circle-btn{
+  position:absolute; top:18px; left:20px;
+  width:34px; height:34px; border-radius:50%;
+  border:2px solid #ff3b7a; background:#fff;
+  display:flex; align-items:center; justify-content:center;
+  padding:0; cursor:pointer;
+}
+.login-page .login-box .back-circle-btn svg{ color:#ff3b7a; font-size:18px; }
+.login-page .login-box .back-circle-btn:hover{ background:#fff0f6; transform:translateY(-1px); }

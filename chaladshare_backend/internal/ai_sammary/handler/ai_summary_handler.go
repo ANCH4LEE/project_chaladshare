@@ -6,7 +6,9 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -20,8 +22,8 @@ type AISummaryHandler struct {
 
 func NewAISummaryHandler() *AISummaryHandler {
 	return &AISummaryHandler{
-		colabURL: os.Getenv("COLAB_URL"),
-		apiKey:   os.Getenv("COLAB_API_KEY"),
+		colabURL: strings.TrimSpace(os.Getenv("COLAB_URL")),
+		apiKey:   strings.TrimSpace(os.Getenv("COLAB_API_KEY")),
 		client: &http.Client{
 			Timeout: 10 * time.Minute, // กันสรุปนาน
 		},
@@ -30,20 +32,35 @@ func NewAISummaryHandler() *AISummaryHandler {
 
 func (h *AISummaryHandler) Summarize(c *gin.Context) {
 	if h.colabURL == "" {
-		c.JSON(500, gin.H{"error": "COLAB_URL is not set"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "COLAB URL is not set"})
 		return
 	}
+
+	// sure to point at /summarize
+	u, err := url.Parse(h.colabURL)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "COLAB_URL is invalid"})
+		return
+	}
+
+	// ถ้า COLAB_URL เป็น base (path ว่างหรือ "/") ให้เซ็ตเป็น /summarize
+	if u.Path == "" || u.Path == "/" {
+		u.Path = "/summarize"
+	} else if !strings.HasSuffix(strings.TrimRight(u.Path, "/"), "/summarize") {
+		u.Path = strings.TrimRight(u.Path, "/") + "/summarize"
+	}
+	targetURL := u.String()
 
 	// รับไฟล์จาก React: form-data key = "file"
 	fh, err := c.FormFile("file")
 	if err != nil {
-		c.JSON(400, gin.H{"error": "missing file (key: file)"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing file (key: file)"})
 		return
 	}
 
 	src, err := fh.Open()
 	if err != nil {
-		c.JSON(400, gin.H{"error": "cannot open uploaded file"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot open uploaded file"})
 		return
 	}
 	defer src.Close()
@@ -54,28 +71,34 @@ func (h *AISummaryHandler) Summarize(c *gin.Context) {
 
 	part, err := writer.CreateFormFile("file", fh.Filename)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "cannot create multipart"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot create multipart"})
 		return
 	}
 	if _, err := io.Copy(part, src); err != nil {
-		c.JSON(500, gin.H{"error": "cannot write multipart"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot write multipart"})
 		return
 	}
-	writer.Close()
+	if err := writer.Close(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot close multipart"})
+		return
+	}
 
-	req, err := http.NewRequestWithContext(c.Request.Context(), "POST", h.colabURL, &buf)
+	req, err := http.NewRequestWithContext(c.Request.Context(), http.MethodPost, targetURL, &buf)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "cannot create request"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot create request"})
 		return
 	}
+
 	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("ngrok-skip-browser-warning", "true")
+
 	if h.apiKey != "" {
-		req.Header.Set("X-API-KEY", h.apiKey)
+		req.Header.Set("X-API-Key", h.apiKey)
 	}
 
 	resp, err := h.client.Do(req)
 	if err != nil {
-		c.JSON(502, gin.H{"error": "failed to call colab", "detail": err.Error()})
+		c.JSON(http.StatusBadGateway, gin.H{"error": "failed to call colab", "detail": err.Error()})
 		return
 	}
 	defer resp.Body.Close()
@@ -90,9 +113,8 @@ func (h *AISummaryHandler) Summarize(c *gin.Context) {
 
 	var js map[string]any
 	if err := json.Unmarshal(body, &js); err != nil {
-		// ถ้าไม่ใช่ json ก็ส่ง raw กลับ
 		c.Data(200, "text/plain; charset=utf-8", body)
 		return
 	}
-	c.JSON(200, js)
+	c.JSON(http.StatusOK, js)
 }

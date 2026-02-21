@@ -10,32 +10,40 @@ import bg from "../assets/bg.jpg";
 import logo from "../assets/logo.png";
 
 const Login = () => {
-  const [formData, setFormData] = useState({email: "",password: "",});
+  const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // ฟังก์ชันตรวจสอบรูปแบบอีเมล
-  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const validateEmail = (email) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    // ล้าง error เมื่อผู้ใช้เริ่มแก้
+    if (error) setError("");
   };
 
-  const handleSubmit = async(e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
+
     setError("");
 
-  const email = formData.email.trim().toLowerCase();
-  const password = formData.password;
+    const email = formData.email.trim().toLowerCase();
+    const password = formData.password;
 
+    // 🔹 Validate ตอน submit เท่านั้น
     if (!email) {
       setError("กรุณากรอกอีเมล");
-      return; 
+      return;
     }
 
     if (!validateEmail(email)) {
@@ -47,17 +55,30 @@ const Login = () => {
       setError("กรุณากรอกรหัสผ่าน");
       return;
     }
-  
+
     try {
-    setLoading(true);
-    const res = await axios.post("/auth/login", { email, password });
-     if (res.status === 200) navigate("/home");
+      setLoading(true);
+
+      const res = await axios.post("/auth/login", { email, password });
+
+      if (res.status === 200) {
+        navigate("/home");
+      }
     } catch (err) {
-      const msg =
-        err.response?.data?.error ||
-        err.response?.data?.detail ||
+      const status = err?.response?.status;
+
+      if (status === 401) {
+        setError("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+        return;
+      }
+
+      const raw =
+        err?.response?.data?.error ||
+        err?.response?.data?.detail ||
+        err?.message ||
         "เข้าสู่ระบบไม่สำเร็จ";
-      setError(msg);
+
+      setError(raw);
     } finally {
       setLoading(false);
     }
@@ -78,24 +99,22 @@ const Login = () => {
           <img src={logo} alt="Logo" />
           <h2>เข้าสู่ระบบ</h2>
 
-          <form onSubmit={handleSubmit}>
-            {/* email */}
+          {/* ปิด browser validation */}
+          <form onSubmit={handleSubmit} noValidate>
             <div className="input-group">
               <span className="icon">
                 <MdOutlineAlternateEmail />
               </span>
               <input
-                type="email"
+                type="text"  // เปลี่ยนจาก email เพื่อกัน popup อังกฤษ
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="Email"
-                required
-                className="mb-3 p-2 border border-gray-300 rounded"
+                autoComplete="email"
               />
             </div>
 
-            {/* password */}
             <div className="input-group">
               <span className="icon">
                 <MdLockOutline />
@@ -106,11 +125,13 @@ const Login = () => {
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="Password"
-                required
+                autoComplete="current-password"
               />
               <span
                 className="icon-right"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() => setShowPassword((s) => !s)}
+                role="button"
+                tabIndex={0}
               >
                 {showPassword ? <VscEyeClosed /> : <VscEye />}
               </span>
@@ -120,18 +141,12 @@ const Login = () => {
               <Link to="/forgot_password">ลืมรหัสผ่าน?</Link>
             </div>
 
-            <button
-              type="submit"
-              className="mb-3 p-2 border border-gray-300 rounded"
-              disabled={loading}
-            >
+            <button type="submit" disabled={loading}>
               {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
             </button>
-            {/* error message */}
+
             {error && (
-              <p
-                style={{ color: "red", fontSize: "15px", marginBottom: "1rem" }}
-              >
+              <p style={{ color: "red", fontSize: "15px", marginTop: "10px" }}>
                 {error}
               </p>
             )}

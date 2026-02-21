@@ -1,5 +1,16 @@
 /*หน้า Home.css ( โดย prefix )*/
 
+.home-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.home-page .home-container {
+  flex: 1;          
+  display: block;    
+}
+
 .home-page .home {
   margin-left: 230px; /* สำหรับ Sidebar */
   padding: 20px;
@@ -42,6 +53,9 @@
 }
 
 .home-page .card-list {
+  width: 100%;
+  max-width: 1200px;
+  
   display: flex;
   gap: 20px;
   flex-wrap: wrap;
@@ -57,7 +71,7 @@
   background: #fff;
   box-shadow: 0px 2px 5px rgba(0,0,0,0.05);
   transition: transform 0.2s ease;
-  margin-left: 20px;
+  /* margin-left: 20px; */
 }
 
 .home-page .card:hover {

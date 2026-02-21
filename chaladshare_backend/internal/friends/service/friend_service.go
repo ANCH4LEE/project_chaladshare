@@ -38,6 +38,10 @@ type FriendService interface {
 	DeclineFriendRequest(ctx context.Context, actorID, requestID int) error
 	CancelFriendRequest(ctx context.Context, actorID, requestID int) error
 	Unfriend(ctx context.Context, actorID, otherID int) error
+	/* 20-02 by ploy */
+	SearchAddFriend(ctx context.Context, actorID int, search string, page, size int) ([]models.UserSearchItem, int, error)
+	/* 20-02 by ploy */
+
 }
 
 type friendsService struct {
@@ -289,4 +293,28 @@ func (s *friendsService) Unfriend(ctx context.Context, actorID, otherID int) err
 		return models.ErrNotFriends
 	}
 	return s.friendsrepo.Unfriend(ctx, actorID, otherID)
+}
+
+/* 20-02 by ploy */
+
+func (s *friendsService) SearchAddFriend(ctx context.Context, actorID int, search string, page, size int) ([]models.UserSearchItem, int, error) {
+	if actorID == 0 {
+		return nil, 0, ErrBadRequest
+	}
+
+	search = normalizeSearch(search)
+	if search == "" {
+		return []models.UserSearchItem{}, 0, nil
+	}
+
+	page, size = clampPageSize(page, size)
+	limit, offset := toLimitOffset(page, size)
+
+	items, err := s.friendsrepo.SearchAddFriend(ctx, actorID, search, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	total, err := s.friendsrepo.CountAddFriend(ctx, actorID, search)
+	return items, total, err
 }

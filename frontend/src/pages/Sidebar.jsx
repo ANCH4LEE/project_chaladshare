@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useLayoutEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { RiUser6Line, RiUserAddLine, RiLogoutCircleRLine, RiHome2Line } from "react-icons/ri";
 import { HiOutlineSparkles } from "react-icons/hi2";
@@ -12,21 +12,23 @@ const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  //จำเมนูที่เลือกไว้ (ค้างได้ทีละอัน)
-  const [activeKey, setActiveKey] = useState("home");
+  const getKeyFromPath = (p) => {
+    if (p === "/newpost") return "newpost";
+    if (p === "/friends") return "friends";
+    if (p === "/profile") return "profile";
+    if (p === "/ai") return "ai";
+    if (p === "/home") return "home";
+    if (p === "/helper") return "helper";
+    return "home";
+  };
 
-  //ซิงค์ตาม path สำหรับหน้าที่มี path ชัดเจน (ไม่ชนกัน)
-  useEffect(() => {
-    const p = location.pathname;
+  // ✅ ตั้งค่าเริ่มต้นให้ตรงกับ path ตั้งแต่ render แรก
+  const [activeKey, setActiveKey] = useState(() => getKeyFromPath(location.pathname));
 
-    if (p === "/newpost") return setActiveKey("newpost");
-    if (p === "/friends") return setActiveKey("friends");
-    if (p === "/profile") return setActiveKey("profile");
-    if (p === "/ai") return setActiveKey("ai");
-    if (p === "/home") return setActiveKey("home");
-    if (p === "/helper") return setActiveKey("helper");
+  // ✅ ซิงค์ก่อน paint เพื่อลด/หายอาการกระพริบ
+  useLayoutEffect(() => {
+    setActiveKey(getKeyFromPath(location.pathname));
   }, [location.pathname]);
-
 
   const go = (key, path) => {
     setActiveKey(key);
@@ -44,55 +46,33 @@ const Sidebar = () => {
       </div>
 
       <ul className="menu">
-        <li
-          className={activeKey === "home" ? "active" : ""}
-          onClick={() => go("home", "/home")}
-          style={{ cursor: "pointer" }}
-        >
+        <li className={activeKey === "home" ? "active" : ""} onClick={() => go("home", "/home")}>
           <RiHome2Line /> หน้าหลัก
         </li>
 
-        <li
-          className={activeKey === "newpost" ? "active" : ""}
-          onClick={() => go("newpost", "/newpost")}
-          style={{ cursor: "pointer" }}
-        >
+        <li className={activeKey === "newpost" ? "active" : ""} onClick={() => go("newpost", "/newpost")}>
           <IoMdAddCircleOutline /> สร้าง
         </li>
 
-        <li
-          className={activeKey === "ai" ? "active" : ""}
-          onClick={() => go("ai", "/ai")}
-        >
+        <li className={activeKey === "ai" ? "active" : ""} onClick={() => go("ai", "/ai")}>
           <HiOutlineSparkles /> AI ช่วยสรุป
         </li>
 
-
-        <li
-          className={activeKey === "friends" ? "active" : ""}
-          onClick={() => go("friends", "/friends")}
-          style={{ cursor: "pointer" }}
-        >
+        <li className={activeKey === "friends" ? "active" : ""} onClick={() => go("friends", "/friends")}>
           <RiUserAddLine /> เพื่อน
         </li>
 
-        <li
-          className={activeKey === "profile" ? "active" : ""}
-          onClick={() => go("profile", "/profile")}
-          style={{ cursor: "pointer" }}
-        >
+        <li className={activeKey === "profile" ? "active" : ""} onClick={() => go("profile", "/profile")}>
           <RiUser6Line /> โปรไฟล์
         </li>
 
-        <li
-          className={activeKey === "helper" ? "active" : ""}
-          onClick={() => go("helper", "/helper")}
-          style={{ cursor: "pointer" }}
-        >
+        <div className="menu-spacer" aria-hidden="true"></div>
+
+        <li className={activeKey === "helper" ? "active" : ""} onClick={() => go("helper", "/helper")}>
           <TbHelpCircle /> คู่มือใช้งาน
         </li>
 
-        <li onClick={() => navigate("/")} style={{ cursor: "pointer" }}>
+        <li onClick={() => navigate("/")}>
           <RiLogoutCircleRLine /> ออกจากระบบ
         </li>
       </ul>

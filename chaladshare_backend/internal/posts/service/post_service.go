@@ -18,6 +18,7 @@ type PostService interface {
 	GetAllPosts() ([]models.PostResponse, error)
 	GetFeedPosts(viewerID int) ([]models.PostResponse, error)
 	GetPostByID(postID int) (*models.PostResponse, error)
+	GetPostByIDForViewer(viewerID, postID int) (*models.PostResponse, error)
 	CountByUserID(userID int) (int, error)
 
 	IsOwner(postID int, userID int) (bool, error)
@@ -25,6 +26,8 @@ type PostService interface {
 	Friends(viewerID, authorID int) (bool, error)
 
 	GetSavedPosts(userID int) ([]models.PostResponse, error)
+	GetPopularPosts(viewerID, limit int) ([]models.PostResponse, error)
+	SearchPosts(viewerID int, search string, page, size int) ([]models.PostResponse, int, error)
 }
 
 type postService struct {
@@ -82,8 +85,8 @@ func (s *postService) UpdatePost(post *models.Post, tags []string) error {
 		return fmt.Errorf("post_title is required")
 	}
 
-	if strings.TrimSpace(post.Visibility) == "" {
-		// แปลว่าจงใจไม่ส่ง visibility มา → ใช้ค่าเดิมจาก DB
+	visInput := strings.TrimSpace(post.Visibility)
+	if visInput == "" {
 		existing, err := s.postRepo.GetPostByID(post.PostID)
 		if err != nil {
 			return fmt.Errorf("get existing post: %w", err)
@@ -91,17 +94,10 @@ func (s *postService) UpdatePost(post *models.Post, tags []string) error {
 		if existing == nil {
 			return fmt.Errorf("post not found")
 		}
-		post.Visibility = existing.Visibility
-	} else {
-		// มีส่งมา → ตรวจให้ถูกต้องเหมือนเดิม
-		vis, err := normalizeVisibility(post.Visibility)
-		if err != nil {
-			return err
-		}
-		post.Visibility = vis
+		visInput = existing.Visibility
 	}
 
-	vis, err := normalizeVisibility(post.Visibility)
+	vis, err := normalizeVisibility(visInput)
 	if err != nil {
 		return err
 	}
@@ -111,14 +107,11 @@ func (s *postService) UpdatePost(post *models.Post, tags []string) error {
 	if tags != nil {
 		normTags = normalizeTags(tags)
 	}
+
 	if err := s.postRepo.UpdatePost(post, normTags); err != nil {
 		return fmt.Errorf("failed to update post: %w", err)
 	}
 	return nil
-}
-
-func (s *postService) DeletePost(postID int) error {
-	return s.postRepo.DeletePost(postID)
 }
 
 func normalizeTags(in []string) []string {
@@ -160,6 +153,10 @@ func normalizeTags(in []string) []string {
 	return out
 }
 
+func (s *postService) DeletePost(postID int) error {
+	return s.postRepo.DeletePost(postID)
+}
+
 func (s *postService) GetAllPosts() ([]models.PostResponse, error) {
 	return s.postRepo.GetAllPosts()
 }
@@ -171,6 +168,10 @@ func (s *postService) GetFeedPosts(viewerID int) ([]models.PostResponse, error) 
 // each post by ID
 func (s *postService) GetPostByID(postID int) (*models.PostResponse, error) {
 	return s.postRepo.GetPostByID(postID)
+}
+
+func (s *postService) GetPostByIDForViewer(viewerID, postID int) (*models.PostResponse, error) {
+	return s.postRepo.GetPostByIDForViewer(viewerID, postID)
 }
 
 func (s *postService) CountByUserID(userID int) (int, error) {
@@ -238,4 +239,33 @@ func (s *postService) Friends(viewerID, authorID int) (bool, error) {
 
 func (s *postService) GetSavedPosts(userID int) ([]models.PostResponse, error) {
 	return s.postRepo.GetSavedPosts(userID)
+}
+
+func (s *postService) GetPopularPosts(viewerID, limit int) ([]models.PostResponse, error) {
+	if viewerID <= 0 {
+		return nil, fmt.Errorf("invalid viewer id")
+	}
+	if limit <= 0 {
+		limit = 3
+	}
+	if limit > 20 {
+		limit = 20
+	}
+	return s.postRepo.GetPopularPosts(viewerID, limit)
+}
+
+func (s *postService) SearchPosts(viewerID int, search string, page, size int) ([]models.PostResponse, int, error) {
+	if viewerID <= 0 {
+		return nil, 0, fmt.Errorf("invalid viewer id")
+	}
+
+	search = strings.TrimSpace(search)
+
+	if page < 1 {
+		page = 1
+	}
+	if size <= 0 || size > 100 {
+		size = 20
+	}
+	return s.postRepo.SearchPosts(viewerID, search, page, size)
 }

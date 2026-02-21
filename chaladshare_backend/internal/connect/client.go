@@ -1,9 +1,11 @@
 package connect
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -40,7 +42,10 @@ func NewFromEnv() (*Client, error) {
 	}, nil
 }
 
-func (c *Client) postPDF(ctx context.Context, endpoint string, documentID int, pdfPath string) (*http.Response, error) {
+func (c *Client) postPDFWithField(ctx context.Context, endpoint string, documentID int, pdfPath string, fileField string) (*http.Response, error) {
+	if !strings.HasPrefix(endpoint, "/") {
+		endpoint = "/" + endpoint
+	}
 	url := c.BaseURL + endpoint
 
 	f, err := os.Open(pdfPath)
@@ -49,37 +54,37 @@ func (c *Client) postPDF(ctx context.Context, endpoint string, documentID int, p
 	}
 	defer f.Close()
 
-	pr, pw := io.Pipe()
-	w := multipart.NewWriter(pw)
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
 
-	// เขียน multipart ใน goroutine เพื่อ stream ไฟล์ (ไม่กิน RAM)
-	go func() {
-		defer pw.Close()
-		defer w.Close()
+	_ = w.WriteField("document_id", strconv.Itoa(documentID))
+	_ = w.WriteField("file_name", filepath.Base(pdfPath))
 
-		_ = w.WriteField("document_id", strconv.Itoa(documentID))
-		_ = w.WriteField("file_name", filepath.Base(pdfPath))
-
-		fw, err := w.CreateFormFile("pdf", filepath.Base(pdfPath))
-		if err != nil {
-			_ = pw.CloseWithError(err)
-			return
-		}
-
-		if _, err := io.Copy(fw, f); err != nil {
-			_ = pw.CloseWithError(err)
-			return
-		}
-	}()
-
-	req, err := http.NewRequestWithContext(ctx, "POST", url, pr)
+	fw, err := w.CreateFormFile(fileField, filepath.Base(pdfPath)) // ต้องเป็น "file"
 	if err != nil {
+		_ = w.Close()
+		return nil, err
+	}
+	if _, err := io.Copy(fw, f); err != nil {
+		_ = w.Close()
+		return nil, err
+	}
+	if err := w.Close(); err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("Content-Type", w.FormDataContentType())
-	req.Header.Set("ngrok-skip-browser-warning", "true")
+	// log ไว้เช็คว่ามีไฟล์จริง
+	if st, _ := os.Stat(pdfPath); st != nil {
+		log.Printf("[COLAB] POST %s file=%s size=%d", url, filepath.Base(pdfPath), st.Size())
+	}
 
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, &buf)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("ngrok-skip-browser-warning", "true")
 	if c.APIKey != "" {
 		req.Header.Set("X-API-Key", c.APIKey)
 	}

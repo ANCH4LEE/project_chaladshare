@@ -12,9 +12,22 @@ axios.defaults.withCredentials = true;
 axios.interceptors.response.use(
   (r) => r,
   (err) => {
-    if (err?.response?.status === 401) {
+    const status = err?.response?.status;
+    const url = err?.config?.url || ""; // เช่น "/auth/login"
+
+    // ✅ ไม่ redirect สำหรับ auth endpoints (ให้หน้าแสดง error เอง)
+    const skipRedirect =
+      url.includes("/auth/login") ||
+      url.includes("/auth/register") ||
+      url.includes("/auth/verify-otp") ||
+      url.includes("/auth/forgot-password") ||
+      url.includes("/auth/reset-password") ||
+      url.includes("/auth/logout");
+
+    if (status === 401 && !skipRedirect) {
       window.location.replace("/");
     }
+
     return Promise.reject(err);
   }
 );

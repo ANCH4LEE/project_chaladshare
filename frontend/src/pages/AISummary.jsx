@@ -22,7 +22,7 @@ const SparkleIcon = () => (
 );
 
 // ngrok เปลี่ยนบ่อย แนะนำย้ายไป .env ทีหลัง
-const API_URL = "https://unsmarting-kamari-arbored.ngrok-free.dev/summarize";
+const API_URL = "https://unsmarting-kamari-arbored.ngrok-free.dev";
 
 const AISummary = () => {
   const inputRef = useRef(null);
@@ -53,13 +53,13 @@ const AISummary = () => {
       const formData = new FormData();
       formData.append("file", pdfFile); // key = file ให้ตรง FastAPI
 
-      const res = await fetch(API_URL, {
+      const res = await fetch(`${API_URL}/summarize`, {
         method: "POST",
         body: formData,
         signal: controller.signal,
-        credentials: "omit", // กัน ngrok/cors งอแงบางเคส
+        credentials: "omit",
         headers: {
-          "ngrok-skip-browser-warning": "true",
+          // "ngrok-skip-browser-warning": "true",
           Accept: "application/json",
         },
       });
@@ -213,7 +213,7 @@ const AISummary = () => {
 
                       {isLoading && (
                         <div style={{ marginTop: 12, fontWeight: 800, color: "#0b5394" }}>
-                          กำลังประมวลผล OCR + สรุปเนื้อหา...
+                          กำลังประมวลผล กรุณารอสักครู่...
                         </div>
                       )}
                       {errorMsg && (
