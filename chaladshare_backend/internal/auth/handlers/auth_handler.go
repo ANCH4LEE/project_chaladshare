@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -12,19 +11,25 @@ import (
 )
 
 type AuthHandler struct {
-	authService service.AuthService
-	cookieName  string
-	secure      bool
+	authService       service.AuthService
+	accessCookieName  string
+	refreshCookieName string
+	secure            bool
 }
 
-func NewAuthHandler(authService service.AuthService, cookieName string, secure bool) *AuthHandler {
-	return &AuthHandler{authService: authService, cookieName: cookieName, secure: secure}
+func NewAuthHandler(authService service.AuthService, accessCookieName string, refreshCookieName string, secure bool) *AuthHandler {
+	return &AuthHandler{
+		authService:       authService,
+		accessCookieName:  accessCookieName,
+		refreshCookieName: refreshCookieName,
+		secure:            secure,
+	}
 }
 
 // // ✅ สำคัญ: ข้ามโดเมน (Vercel) ต้อง SameSite=None และ Secure=true (ตอน prod)
 // func (h *AuthHandler) setAuthCookie(c *gin.Context, token string) {
 // 	http.SetCookie(c.Writer, &http.Cookie{
-// 		Name:     h.cookieName,
+// 		Name:     h.accessCookieName,
 // 		Value:    token,
 // 		Path:     "/",
 // 		HttpOnly: true,
@@ -35,7 +40,7 @@ func NewAuthHandler(authService service.AuthService, cookieName string, secure b
 
 // func (h *AuthHandler) clearAuthCookie(c *gin.Context) {
 // 	http.SetCookie(c.Writer, &http.Cookie{
-// 		Name:     h.cookieName,
+// 		Name:     h.accessCookieName,
 // 		Value:    "",
 // 		Path:     "/",
 // 		MaxAge:   -1,
@@ -46,30 +51,60 @@ func NewAuthHandler(authService service.AuthService, cookieName string, secure b
 // }
 
 // 88
-func (h *AuthHandler) setAuthCookie(c *gin.Context, token string) {
+func (h *AuthHandler) setAccessCookie(c *gin.Context, token string) {
 	sameSite := http.SameSiteLaxMode
 	if h.secure {
 		sameSite = http.SameSiteNoneMode
 	}
 
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     h.cookieName,
+		Name:     h.accessCookieName,
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   h.secure,
 		SameSite: sameSite,
+		MaxAge:   15 * 60,
 	})
 }
 
-func (h *AuthHandler) clearAuthCookie(c *gin.Context) {
+func (h *AuthHandler) setRefreshCookie(c *gin.Context, refreshToken string) {
 	sameSite := http.SameSiteLaxMode
 	if h.secure {
 		sameSite = http.SameSiteNoneMode
 	}
 
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     h.cookieName,
+		Name:     h.refreshCookieName,
+		Value:    refreshToken,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   h.secure,
+		SameSite: sameSite,
+		MaxAge:   7 * 24 * 60 * 60,
+	})
+}
+
+func (h *AuthHandler) clearAuthCookies(c *gin.Context) {
+	sameSite := http.SameSiteLaxMode
+	if h.secure {
+		sameSite = http.SameSiteNoneMode
+	}
+
+	// clear access
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     h.accessCookieName,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   h.secure,
+		SameSite: sameSite,
+	})
+
+	// clear refresh
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     h.refreshCookieName,
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
@@ -89,23 +124,6 @@ func (h *AuthHandler) GetAllUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, users)
 }
 
-// Get user by ID
-func (h *AuthHandler) GetUserByID(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
-		return
-	}
-
-	user, err := h.authService.GetUserByID(id)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
-		return
-	}
-	c.JSON(http.StatusOK, user)
-}
-
 // Register
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req models.RegisterRequest
@@ -115,20 +133,19 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	user, err := h.authService.Register(req.Email, req.Username, req.Password, req.VerifyToken)
-
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	token, err := h.authService.IssueToken(user.ID)
+	// สร้าง access+refresh พร้อม session
+	access, refresh, err := h.authService.IssueSession(user.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "issue token failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "issue session failed"})
 		return
 	}
-
-	// ✅ set cookie
-	h.setAuthCookie(c, token)
+	h.setAccessCookie(c, access)
+	h.setRefreshCookie(c, refresh)
 
 	resp := models.AuthResponse{
 		ID: user.ID, Email: user.Email, Username: user.Username,
@@ -149,32 +166,57 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	user, err := h.authService.Login(req.Email, req.Password)
+	access, refresh, user, err := h.authService.LoginWithSession(req.Email, req.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
 	}
 
-	token, err := h.authService.IssueToken(user.ID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "issue token failed"})
-		return
-	}
-
-	// ✅ set cookie
-	h.setAuthCookie(c, token)
+	h.setAccessCookie(c, access)
+	h.setRefreshCookie(c, refresh)
 
 	resp := models.AuthResponse{
 		ID: user.ID, Email: user.Email, Username: user.Username,
 		CreatedAt: user.CreatedAt, Status: user.Status,
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Login successful", "user": resp})
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "login successful",
+		"user":    resp,
+	})
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
-	// ✅ clear cookie
-	h.clearAuthCookie(c)
+	// revoke session ใน DB (ถ้ามี refresh)
+	if rt, err := c.Cookie(h.refreshCookieName); err == nil && strings.TrimSpace(rt) != "" {
+		_ = h.authService.Logout(rt) // idempotent
+	}
+
+	// clear ทั้ง access + refresh
+	h.clearAuthCookies(c)
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
+}
+
+func (h *AuthHandler) Refresh(c *gin.Context) {
+	rt, err := c.Cookie(h.refreshCookieName)
+	if err != nil || strings.TrimSpace(rt) == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing refresh token"})
+		return
+	}
+
+	newAccess, newRefresh, err := h.authService.Refresh(rt)
+	if err != nil {
+		h.clearAuthCookies(c)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	h.setAccessCookie(c, newAccess)
+	h.setRefreshCookie(c, newRefresh)
+
+	c.JSON(http.StatusOK, models.RefreshResponse{
+		Message: "refreshed",
+	})
 }
 
 // ForgotPassword - ขอ OTP เพื่อรีเซ็ตรหัสผ่าน

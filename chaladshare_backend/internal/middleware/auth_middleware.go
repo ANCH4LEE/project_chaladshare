@@ -11,12 +11,13 @@ import (
 
 const CtxUserID = "user_id"
 
-func JWT(secret []byte, cookieName string) gin.HandlerFunc {
+func JWT(secret []byte, accesscookieName string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var tokenStr string
+
 		if a := c.GetHeader("Authorization"); strings.HasPrefix(a, "Bearer ") {
 			tokenStr = strings.TrimPrefix(a, "Bearer ")
-		} else if v, err := c.Cookie(cookieName); err == nil {
+		} else if v, err := c.Cookie(accesscookieName); err == nil {
 			tokenStr = v
 		}
 
@@ -30,11 +31,18 @@ func JWT(secret []byte, cookieName string) gin.HandlerFunc {
 			}
 			return secret, nil
 		})
+
 		if err != nil || !tok.Valid {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 			return
 		}
-		claims := tok.Claims.(jwt.MapClaims)
+
+		claims, ok := tok.Claims.(jwt.MapClaims)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "bad claims"})
+			return
+		}
+
 		f, ok := claims["user_id"].(float64)
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "bad claims"})

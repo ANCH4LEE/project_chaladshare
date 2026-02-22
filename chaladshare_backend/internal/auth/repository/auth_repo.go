@@ -11,7 +11,6 @@ import (
 
 type AuthRepository interface {
 	GetAllUsers() ([]models.User, error)
-	GetUserByID(id int) (*models.User, error)
 	GetUserByEmail(email string) (*models.User, error)
 	IsEmailTaken(email string) (bool, error)
 	IsUsernameTaken(username string) (bool, error)
@@ -28,6 +27,13 @@ type AuthRepository interface {
 	GetLatestActiveEmailVerification(email string) (*models.EmailVerification, error)
 	MarkEmailVerificationUsed(verifyID int) error
 	MarkAllActiveEmailVerificationsUsed(email string) error
+
+	// sessions refresh
+	CreateSession(userID int, refreshHash string, expiresAt time.Time) (*models.AuthSession, error)
+	GetSessionByRefresh(refreshHash string) (*models.AuthSession, error)
+	RevokeSession(sessionID int) error
+	RotateSession(oldSessionID int, newRefreshHash string, newExpiresAt time.Time) (*models.AuthSession, error)
+	UpdateSessionLastUsed(sessionID int) error
 }
 
 type authRepository struct {
@@ -67,25 +73,6 @@ func (r *authRepository) GetAllUsers() ([]models.User, error) {
 		return nil, fmt.Errorf("เกิดข้อผิดพลาดระหว่างอ่านข้อมูล: %w", err)
 	}
 	return users, nil
-}
-
-// ดึงข้อมูลผู้ใช้จาก id
-func (r *authRepository) GetUserByID(id int) (*models.User, error) {
-	var u models.User
-	err := r.db.QueryRow(`
-		SELECT user_id, email, username, user_created_at, user_status
-		FROM users
-		WHERE user_id = $1
-	`, id).Scan(
-		&u.ID, &u.Email, &u.Username, &u.CreatedAt, &u.Status,
-	)
-
-	if err == sql.ErrNoRows {
-		return nil, errors.New("ไม่พบผู้ใช้")
-	} else if err != nil {
-		return nil, fmt.Errorf("เกิดข้อผิดพลาดในการดึงข้อมูลผู้ใช้: %w", err)
-	}
-	return &u, nil
 }
 
 // ผู้ใช้ตาม email
@@ -277,4 +264,137 @@ func (r *authRepository) IsUsernameTaken(username string) (bool, error) {
 		return false, fmt.Errorf("check username exists failed: %w", err)
 	}
 	return exists, nil
+}
+
+func (r *authRepository) CreateSession(userID int, refreshHash string, expiresAt time.Time) (*models.AuthSession, error) {
+	var s models.AuthSession
+	err := r.db.QueryRow(`
+		INSERT INTO auth_sessions (
+			session_user_id, refresh_token_hash, session_expires_at,
+			created_at, last_used_at, revoked_at, replaced_by_session_id
+		)
+		VALUES ($1, $2, $3, NOW(), NOW(), NULL, NULL)
+		RETURNING
+			session_id, session_user_id, refresh_token_hash, session_expires_at,
+			revoked_at, replaced_by_session_id, created_at, last_used_at
+	`, userID, refreshHash, expiresAt).Scan(
+		&s.SessionID, &s.UserID, &s.RefreshTokenHash, &s.ExpiresAt,
+		&s.RevokedAt, &s.ReplacedByID, &s.CreatedAt, &s.LastUsedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create session failed: %w", err)
+	}
+	return &s, nil
+}
+
+func (r *authRepository) GetSessionByRefresh(refreshHash string) (*models.AuthSession, error) {
+	var s models.AuthSession
+	err := r.db.QueryRow(`
+  SELECT
+    session_id, session_user_id, refresh_token_hash, session_expires_at,
+    revoked_at, replaced_by_session_id, created_at, last_used_at
+  FROM auth_sessions
+  WHERE refresh_token_hash = $1
+    AND revoked_at IS NULL
+    AND session_expires_at > NOW()
+  ORDER BY session_id DESC
+  LIMIT 1
+`, refreshHash).Scan(
+		&s.SessionID, &s.UserID, &s.RefreshTokenHash, &s.ExpiresAt,
+		&s.RevokedAt, &s.ReplacedByID, &s.CreatedAt, &s.LastUsedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, errors.New("session not found or expired")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get session by refresh failed: %w", err)
+	}
+	return &s, nil
+}
+
+func (r *authRepository) RevokeSession(sessionID int) error {
+	_, err := r.db.Exec(`
+		UPDATE auth_sessions
+		SET revoked_at = NOW()
+		WHERE session_id = $1
+		  AND revoked_at IS NULL
+	`, sessionID)
+	if err != nil {
+		return fmt.Errorf("revoke session failed: %w", err)
+	}
+	return nil
+}
+
+func (r *authRepository) UpdateSessionLastUsed(sessionID int) error {
+	_, err := r.db.Exec(`
+		UPDATE auth_sessions
+		SET last_used_at = NOW()
+		WHERE session_id = $1
+	`, sessionID)
+	if err != nil {
+		return fmt.Errorf("update session last used failed: %w", err)
+	}
+	return nil
+}
+
+func (r *authRepository) RotateSession(oldSessionID int, newRefreshHash string, newExpiresAt time.Time) (*models.AuthSession, error) {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("begin tx failed: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// ล็อก session เก่า
+	var userID int
+	err = tx.QueryRow(`
+		SELECT session_user_id
+		FROM auth_sessions
+		WHERE session_id = $1
+		  AND revoked_at IS NULL
+		  AND session_expires_at > NOW()
+		FOR UPDATE
+	`, oldSessionID).Scan(&userID)
+	if err == sql.ErrNoRows {
+		return nil, errors.New("old session invalid/expired")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("lock old session failed: %w", err)
+	}
+
+	// สร้าง session ใหม่
+	var ns models.AuthSession
+	err = tx.QueryRow(`
+		INSERT INTO auth_sessions (
+			session_user_id, refresh_token_hash, session_expires_at,
+			created_at, last_used_at, revoked_at, replaced_by_session_id
+		)
+		VALUES ($1, $2, $3, NOW(), NOW(), NULL, NULL)
+		RETURNING
+			session_id, session_user_id, refresh_token_hash, session_expires_at,
+			revoked_at, replaced_by_session_id, created_at, last_used_at
+	`, userID, newRefreshHash, newExpiresAt).Scan(
+		&ns.SessionID, &ns.UserID, &ns.RefreshTokenHash, &ns.ExpiresAt,
+		&ns.RevokedAt, &ns.ReplacedByID, &ns.CreatedAt, &ns.LastUsedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("insert new session failed: %w", err)
+	}
+
+	// ปิด session เก่า แทนด้วย session ใหม่
+	_, err = tx.Exec(`
+		UPDATE auth_sessions
+		SET revoked_at = NOW(),
+		    replaced_by_session_id = $2
+		WHERE session_id = $1
+		  AND revoked_at IS NULL
+	`, oldSessionID, ns.SessionID)
+	if err != nil {
+		return nil, fmt.Errorf("revoke old session failed: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit tx failed: %w", err)
+	}
+	return &ns, nil
 }

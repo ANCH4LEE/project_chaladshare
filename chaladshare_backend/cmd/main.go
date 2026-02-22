@@ -103,13 +103,22 @@ func main() {
 	}
 	defer db.Close()
 
-	// ✅ cookie secure flag (Railway/Vercel ต้อง true)
+	// cookie secure flag (Railway/Vercel ต้อง true)
 	secureCookie := strings.ToLower(os.Getenv("COOKIE_SECURE")) == "true"
+	accessCookieName := os.Getenv("ACCESS_COOKIE_NAME")
+	if accessCookieName == "" {
+		accessCookieName = "access_token"
+	}
+
+	refreshCookieName := os.Getenv("REFRESH_COOKIE_NAME")
+	if refreshCookieName == "" {
+		refreshCookieName = "refresh_token"
+	}
 
 	// auth
 	authRepository := AuthRepo.NewAuthRepository(db.GetDB())
 	authService := AuthService.NewAuthService(authRepository, []byte(cfg.JWTSecret), cfg.TokenTTLMinutes)
-	authHandler := AuthHandler.NewAuthHandler(authService, cfg.CookieName, secureCookie)
+	authHandler := AuthHandler.NewAuthHandler(authService, accessCookieName, refreshCookieName, secureCookie)
 
 	// friends
 	friendsRepo := FriendsRepo.NewFriendRepository(db.GetDB())
@@ -225,19 +234,19 @@ func main() {
 		authRoutes.POST("/register", authHandler.Register)
 		authRoutes.POST("/login", authHandler.Login)
 		authRoutes.POST("/logout", authHandler.Logout)
+		authRoutes.POST("/refresh", authHandler.Refresh)
 
 		authRoutes.POST("/forgot-password", authHandler.ForgotPassword)
 		authRoutes.POST("/forgot-password/verify-otp", authHandler.VerifyForgotPasswordOTP) // ✅ เพิ่มบรรทัดนี้
 		authRoutes.POST("/reset-password", authHandler.ResetPassword)
 
 		authRoutes.GET("/users", authHandler.GetAllUsers)
-		authRoutes.GET("/users/:id", authHandler.GetUserByID)
 		authRoutes.POST("/register/request-otp", authHandler.RequestRegisterOTP)
 		authRoutes.POST("/register/confirm-otp", authHandler.ConfirmVerifyEmailOTP)
 	}
 	// Protected (ต้องมี JWT)
 	protected := v1.Group("/")
-	protected.Use(middleware.JWT([]byte(cfg.JWTSecret), cfg.CookieName))
+	protected.Use(middleware.JWT([]byte(cfg.JWTSecret), accessCookieName))
 	{
 		posts := protected.Group("/posts")
 		{

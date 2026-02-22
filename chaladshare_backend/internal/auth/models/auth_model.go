@@ -11,22 +11,21 @@ type User struct {
 	Status       string    `json:"status"`
 }
 
-//register
+// register
 type RegisterRequest struct {
 	Email       string `json:"email"`
 	Username    string `json:"username"`
 	Password    string `json:"password"`
 	VerifyToken string `json:"verify_token"` // ✅ ต้องมีเพื่อสมัครได้ 88
-
 }
 
-//login
+// login
 type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
-//response ส่งกลับให้ client
+// response ส่งกลับให้ client
 type AuthResponse struct {
 	ID        int       `json:"id"`
 	Email     string    `json:"email"`
@@ -74,4 +73,19 @@ type EmailVerification struct {
 	ExpiresAt time.Time
 	UsedAt    *time.Time
 	CreatedAt time.Time
+}
+
+type RefreshResponse struct {
+	Message string `json:"message"`
+}
+
+type AuthSession struct {
+	SessionID        int
+	UserID           int
+	RefreshTokenHash string
+	ExpiresAt        time.Time
+	RevokedAt        *time.Time
+	ReplacedByID     *int
+	CreatedAt        time.Time
+	LastUsedAt       *time.Time
 }

@@ -21,13 +21,13 @@ import (
 
 type AuthService interface {
 	GetAllUsers() ([]models.User, error)
-	GetUserByID(id int) (*models.User, error)
 	GetUserByEmail(email string) (*models.User, error)
 	Register(email, username, password, verifyToken string) (*models.User, error)
 	IsEmailTaken(email string) (bool, error)
 	IsUsernameTaken(username string) (bool, error)
 	Login(email, password string) (*models.User, error)
 	IssueToken(userID int) (string, error)
+	IssueSession(userID int) (accessToken string, refreshToken string, err error)
 	ForgotPassword(email string) error
 	ResetPassword(email, otp, newPassword string) error
 	//88
@@ -35,6 +35,10 @@ type AuthService interface {
 	ConfirmEmailVerifyOTP(email, otp string) (string, error) // return verify_token
 	ValidateEmailVerifyToken(email, token string) error
 	VerifyForgotOTP(email, otp string) error
+
+	LoginWithSession(email, password string) (accessToken string, refreshToken string, user *models.User, err error)
+	Refresh(refreshToken string) (newAccess string, newRefresh string, err error)
+	Logout(refreshToken string) error
 }
 
 type authService struct {
@@ -92,12 +96,25 @@ func (s *authService) GetAllUsers() ([]models.User, error) {
 	return s.userRepo.GetAllUsers()
 }
 
-// ผู้ใช้ตาม ID
-func (s *authService) GetUserByID(id int) (*models.User, error) {
-	if id <= 0 {
-		return nil, errors.New("invalid user ID")
+func (s *authService) IssueSession(userID int) (string, string, error) {
+	access, err := s.IssueToken(userID)
+	if err != nil {
+		return "", "", err
 	}
-	return s.userRepo.GetUserByID(id)
+
+	refresh, err := newRefreshToken()
+	if err != nil {
+		return "", "", err
+	}
+
+	refreshHash := hashToken(refresh)
+	expiresAt := time.Now().Add(30 * 24 * time.Hour)
+
+	if _, err := s.userRepo.CreateSession(userID, refreshHash, expiresAt); err != nil {
+		return "", "", err
+	}
+
+	return access, refresh, nil
 }
 
 // ดึงผู้ใช้จากอีเมล
@@ -417,4 +434,82 @@ func (s *authService) IsUsernameTaken(username string) (bool, error) {
 		return false, errors.New("username is required")
 	}
 	return s.userRepo.IsUsernameTaken(username)
+}
+
+func (s *authService) LoginWithSession(email, password string) (accessToken string, refreshToken string, user *models.User, err error) {
+	user, err = s.Login(email, password) // ใช้ของเดิม ไม่ต้องแก้
+	if err != nil {
+		return "", "", nil, err
+	}
+
+	accessToken, err = s.IssueToken(user.ID)
+	if err != nil {
+		return "", "", nil, err
+	}
+
+	refreshToken, err = newRefreshToken()
+	if err != nil {
+		return "", "", nil, err
+	}
+
+	refreshHash := hashToken(refreshToken)
+	expiresAt := time.Now().Add(30 * 24 * time.Hour)
+
+	if _, err := s.userRepo.CreateSession(user.ID, refreshHash, expiresAt); err != nil {
+		return "", "", nil, err
+	}
+
+	return accessToken, refreshToken, user, nil
+}
+
+func (s *authService) Refresh(refreshToken string) (newAccess string, newRefresh string, err error) {
+	refreshToken = strings.TrimSpace(refreshToken)
+	if refreshToken == "" {
+		return "", "", errors.New("missing refresh token")
+	}
+
+	hash := hashToken(refreshToken)
+	sess, err := s.userRepo.GetSessionByRefresh(hash)
+	if err != nil {
+		return "", "", errors.New("invalid refresh token")
+	}
+
+	if time.Now().After(sess.ExpiresAt) {
+		_ = s.userRepo.RevokeSession(sess.SessionID)
+		return "", "", errors.New("refresh token expired")
+	}
+
+	// ออก access token ใหม่
+	newAccess, err = s.IssueToken(sess.UserID)
+	if err != nil {
+		return "", "", err
+	}
+
+	// rotate refresh token (ปลอดภัยกว่า)
+	newRefresh, err = newRefreshToken()
+	if err != nil {
+		return "", "", err
+	}
+	newHash := hashToken(newRefresh)
+	newExpires := time.Now().Add(30 * 24 * time.Hour)
+
+	if _, err := s.userRepo.RotateSession(sess.SessionID, newHash, newExpires); err != nil {
+		return "", "", err
+	}
+
+	return newAccess, newRefresh, nil
+}
+
+func (s *authService) Logout(refreshToken string) error {
+	refreshToken = strings.TrimSpace(refreshToken)
+	if refreshToken == "" {
+		return nil // idempotent
+	}
+
+	hash := hashToken(refreshToken)
+	sess, err := s.userRepo.GetSessionByRefresh(hash)
+	if err != nil {
+		return nil // ไม่เจอก็ถือว่า logout แล้ว
+	}
+	return s.userRepo.RevokeSession(sess.SessionID)
 }
