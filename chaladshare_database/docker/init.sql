@@ -1,7 +1,10 @@
+CREATE EXTENSION IF NOT EXISTS vector;
+
 -- ตาราง users สำหรับ login/register 172.20.10.2
+CREATE EXTENSION IF NOT EXISTS citext;
 create table if not exists users (
     user_id         serial primary key,                     -- id auto increment
-    email           varchar(256) unique not null,            -- email ไม่ซ้ำ ห้ามว่าง
+    email           citext unique not null,                 -- email ไม่ซ้ำ ห้ามว่าง
     username        varchar(50) unique not null,            -- username ไม่ซ้ำ ห้ามว่าง
     username_ci     varchar(50) generated always as 
                      (lower(username)) stored,              -- ทำ index คำเล็ก (case-insensitive)
@@ -43,13 +46,23 @@ execute function set_updated_at();
 
 -- ตารางเก็บ session การล็อกอิน (ใช้ refresh token)
 create table if not exists auth_sessions (
-    session_id         serial primary key,                         -- id auto increment
-    session_user_id    integer references users(user_id) 
-                       on delete cascade,                          -- ผูกกับ users ถ้าลบ user ก็ลบ session
-    refresh_token_hash varchar(255) not null,                      -- เก็บค่า refresh token แบบ hash
-    session_expires_at timestamptz not null,                       -- เวลาหมดอายุของ session
-    revoked_at         timestamptz                                 -- เวลาเพิกถอน (เช่น logout หรือ revoke)
+    session_id          serial primary key,
+    session_user_id     integer NOT NULL references users(user_id) on delete cascade,
+    refresh_token_hash  varchar(255) not null,          -- เก็บ hash
+    session_expires_at  timestamptz not null,
+    revoked_at          timestamptz,
+    created_at          timestamptz default now(),
+    last_used_at        timestamptz,
+    replaced_by_session_id integer references auth_sessions(session_id)
 );
+
+-- session ที่ยัง active ของ user
+create index if not exists ix_auth_sessions_user_active
+  on auth_sessions(session_user_id)
+  where revoked_at is null;
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_auth_sessions_refresh_hash
+ON auth_sessions (refresh_token_hash);
 
 -- ตารางเก็บการ reset password (otp หรือโค้ดชั่วคราว)
 create table if not exists password_resets (
@@ -236,8 +249,6 @@ CREATE INDEX IF NOT EXISTS idx_saved_posts_post_id
 ON saved_posts (save_post_id);
 
 /* 20-02 by ploy */
-
-CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS trigger AS $$
