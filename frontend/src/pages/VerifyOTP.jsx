@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
-import axios from "axios";
-import "../component/AuthReset.css";
-import bg from "../assets/bg.jpg";
 import { VscArrowLeft } from "react-icons/vsc";
+import { useNotification } from "../component/Notification";
+import axios from "axios";
+import bg from "../assets/bg.jpg";
+import "../component/AuthReset.css";
 
 const API_ORIGIN = process.env.REACT_APP_API_ORIGIN || "http://localhost:8080";
 const OTP_TTL_SECONDS = 180;
@@ -34,6 +35,7 @@ const toThaiError = (raw) => {
 export default function VerifyOTP() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { success: notifySuccess, error: notifyError } = useNotification();
 
   // ✅ mode: "forgot" | "register"
   const mode = useMemo(() => {
@@ -45,6 +47,14 @@ export default function VerifyOTP() {
     const e = location.state?.email;
     return typeof e === "string" ? e : "";
   }, [location.state]);
+
+  const navTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (navTimerRef.current) clearTimeout(navTimerRef.current);
+    };
+  }, []);
 
   const registerPayload = useMemo(() => {
     return {
@@ -211,11 +221,21 @@ export default function VerifyOTP() {
         { headers: { "Content-Type": "application/json" }, timeout: 15000 }
       );
 
-      alert("สมัครสมาชิกสำเร็จ!");
-      navigate("/home", { replace: true });
+      notifySuccess("สมัครสมาชิกสำเร็จ 🎉", 1500);
+
+      if (navTimerRef.current) clearTimeout(navTimerRef.current);
+      navTimerRef.current = setTimeout(() => {
+        navigate("/home", { replace: true });
+      }, 800);
     } catch (err) {
+      if (navTimerRef.current) clearTimeout(navTimerRef.current);
+
       const raw = err.response?.data?.error || err.response?.data?.message || err.message;
+      const msg = toThaiError(raw);
+      
       setError(toThaiError(raw));
+      setError(msg);       // ข้อความแดงในหน้า
+      notifyError(msg, 2500); // toast มุมขวาบน
     } finally {
       setLoading(false);
     }

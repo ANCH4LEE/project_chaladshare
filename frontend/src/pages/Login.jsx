@@ -16,8 +16,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const validateEmail = (email) =>
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -59,7 +58,15 @@ const Login = () => {
     try {
       setLoading(true);
 
-      const res = await axios.post("/auth/login", { email, password });
+      const res = await axios.post(
+        "/auth/login",
+        { email, password },
+        {
+          headers: { "Content-Type": "application/json" },
+          withCredentials: true, //ให้รับ/ส่ง cookie
+          timeout: 15000,
+        },
+      );
 
       if (res.status === 200) {
         navigate("/home");
@@ -106,7 +113,7 @@ const Login = () => {
                 <MdOutlineAlternateEmail />
               </span>
               <input
-                type="text"  // เปลี่ยนจาก email เพื่อกัน popup อังกฤษ
+                type="text" // เปลี่ยนจาก email เพื่อกัน popup อังกฤษ
                 name="email"
                 value={formData.email}
                 onChange={handleChange}

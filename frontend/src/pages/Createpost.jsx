@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState } from "react"; 
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useNotification } from "../component/Notification";
 import axios from "axios";
-
-import "../component/Createpost.css";
 import Sidebar from "./Sidebar";
 import Footer from "../component/Footer";
+import "../component/Createpost.css";
 
 const MAX_FILE_MB = 30; // จำกัดขนาดไฟล์ 10MB
 const ACCEPTED_MIME = ["application/pdf"];
@@ -33,14 +33,22 @@ const CreatePost = () => {
   const [errorMsg, setErrorMsg] = useState("");
   const coverInputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const navTimerRef = useRef(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState("");
   const navigate = useNavigate();
+  const { success: notifySuccess, error: notifyError } = useNotification();
 
   useEffect(() => {
     return () => {
       if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
     };
   }, [coverPreviewUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (navTimerRef.current) clearTimeout(navTimerRef.current);
+    };
+  }, []);
 
   const handleChange = (e) => {
     setForm({
@@ -116,8 +124,8 @@ const CreatePost = () => {
   };
 
   // โพสต์
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (e) => { 
+    e.preventDefault(); 
     setErrorMsg("");
 
     if (!formData.title.trim()) {
@@ -148,7 +156,7 @@ const CreatePost = () => {
 
         coverUrl = coverRes.data && coverRes.data.cover_url;
         if (!coverUrl) {
-          throw new Error("ไม่พบ cover_url จากการอัปโหลดหน้าปก");
+          throw new Error("ไม่พบ cover url จากการอัปโหลดหน้าปก");
         }
       }
 
@@ -161,7 +169,7 @@ const CreatePost = () => {
       });
 
       const documentId = uploadRes.data && uploadRes.data.document_id;
-      if (!documentId) throw new Error("ไม่พบ document_id จากการอัปโหลด");
+      if (!documentId) throw new Error("ไม่พบ document id จากการอัปโหลด");
 
       // สร้างโพสต์
       const postData = {
@@ -174,22 +182,33 @@ const CreatePost = () => {
       };
 
       await axios.post("/posts", postData, { withCredentials: true });
-      alert("โพสต์สำเร็จ!");
-      handleCancel();
+      notifySuccess("โพสต์สำเร็จ ✅", 3000);
+      if (navTimerRef.current) clearTimeout(navTimerRef.current);
+      navTimerRef.current = setTimeout(() => {
+        handleCancel(); 
+      }, 800);
+
     } catch (err) {
-      if (err && err.response && err.response.status === 401) {
-        return navigate("/login", { replace: true });
-      }
-      console.error("Create post error:", err);
-      setErrorMsg(
-        (err.response && err.response.data && err.response.data.error) ||
-          err.message ||
-          "เกิดข้อผิดพลาดในการโพสต์"
-      );
-    } finally {
-      setIsLoading(false);
+    if (navTimerRef.current) clearTimeout(navTimerRef.current);
+
+    if (err && err.response && err.response.status === 401) {
+      notifyError("กรุณาเข้าสู่ระบบใหม่");
+      return navigate("/", { replace: true });
     }
-  };
+
+    console.error("Create post error:", err);
+
+    const msg =
+      (err.response && err.response.data && err.response.data.error) ||
+      err.message ||
+      "เกิดข้อผิดพลาดในการโพสต์";
+
+    setErrorMsg(msg);
+    notifyError(msg, 2500);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleCancel = () => {
     if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);

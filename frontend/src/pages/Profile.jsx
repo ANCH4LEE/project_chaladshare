@@ -215,7 +215,7 @@ const Profile = () => {
         const me = await axios.get("/profile");
         if (!cancelled) setMyId(me?.data?.user_id ?? me?.data?.id ?? null);
       } catch (e) {
-        if (e?.response?.status === 401) navigate("/login", { replace: true });
+        if (e?.response?.status === 401) navigate("/", { replace: true });
       }
     })();
     return () => {

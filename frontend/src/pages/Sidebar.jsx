@@ -4,9 +4,12 @@ import { RiUser6Line, RiUserAddLine, RiLogoutCircleRLine, RiHome2Line } from "re
 import { HiOutlineSparkles } from "react-icons/hi2";
 import { IoMdAddCircleOutline } from "react-icons/io";
 import { TbHelpCircle } from "react-icons/tb";
+import axios from "axios";
 
 import "../component/Sidebar.css";
 import logo from "../assets/logo.png";
+
+const API_HOST = "http://localhost:8080/api/v1";
 
 const Sidebar = () => {
   const navigate = useNavigate();
@@ -33,6 +36,17 @@ const Sidebar = () => {
   const go = (key, path) => {
     setActiveKey(key);
     navigate(path);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await axios.post(`${API_HOST}/auth/logout`, {}, { withCredentials: true });
+    } catch (err) {
+      console.log("logout error:", err);
+    } finally {
+      setActiveKey("home");
+      navigate("/"); 
+    }
   };
 
   return (
@@ -72,7 +86,7 @@ const Sidebar = () => {
           <TbHelpCircle /> คู่มือใช้งาน
         </li>
 
-        <li onClick={() => navigate("/")}>
+        <li onClick={handleLogout}>
           <RiLogoutCircleRLine /> ออกจากระบบ
         </li>
       </ul>

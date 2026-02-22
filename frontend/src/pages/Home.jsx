@@ -1,6 +1,6 @@
 // หน้า Home.jsx (ทำ prefix แล้ว)
 
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { IoSearch } from "react-icons/io5";
 import axios from "axios";
@@ -116,47 +116,50 @@ const Home = () => {
       );
   }, [popularPosts]);
 
-  const fetchSearchPosts = async (q = search, p = searchPage) => {
-    const qq = normalizeQuery(q);
+  const fetchSearchPosts = useCallback(
+    async (q = search, p = searchPage) => {
+      const qq = normalizeQuery(q);
 
-    if (!qq) {
-      setSearchPosts([]);
-      setSearchTotal(0);
-      setSearchErr("");
-      setLoadingSearch(false);
-      return;
-    }
-
-    setLoadingSearch(true);
-    setSearchErr("");
-
-    try {
-      const res = await axios.get("/posts/search", {
-        params: { search: qq, page: p, size: searchSize },
-        withCredentials: true,
-      });
-
-      const payload = res?.data?.data ?? res?.data ?? {};
-      const itemsRaw = Array.isArray(payload?.items) ? payload.items : [];
-      const totalRaw = Number.isFinite(payload?.total) ? payload.total : 0;
-
-      const mapped = itemsRaw.map(mapToCardPost);
-      setSearchPosts(mapped);
-      setSearchTotal(totalRaw);
-    } catch (e) {
-      if (e?.response?.status === 401) {
-        navigate("/login", { replace: true });
+      if (!qq) {
+        setSearchPosts([]);
+        setSearchTotal(0);
+        setSearchErr("");
+        setLoadingSearch(false);
         return;
       }
-      setSearchErr(
-        e?.response?.data?.error || e.message || "ค้นหาโพสต์ล้มเหลว",
-      );
-      setSearchPosts([]);
-      setSearchTotal(0);
-    } finally {
-      setLoadingSearch(false);
-    }
-  };
+
+      setLoadingSearch(true);
+      setSearchErr("");
+
+      try {
+        const res = await axios.get("/posts/search", {
+          params: { search: qq, page: p, size: searchSize },
+          withCredentials: true,
+        });
+
+        const payload = res?.data?.data ?? res?.data ?? {};
+        const itemsRaw = Array.isArray(payload?.items) ? payload.items : [];
+        const totalRaw = Number.isFinite(payload?.total) ? payload.total : 0;
+
+        const mapped = itemsRaw.map(mapToCardPost);
+        setSearchPosts(mapped);
+        setSearchTotal(totalRaw);
+      } catch (e) {
+        if (e?.response?.status === 401) {
+          navigate("/", { replace: true }); // ✅ เปลี่ยนจาก /login -> /
+          return;
+        }
+        setSearchErr(
+          e?.response?.data?.error || e.message || "ค้นหาโพสต์ล้มเหลว",
+        );
+        setSearchPosts([]);
+        setSearchTotal(0);
+      } finally {
+        setLoadingSearch(false);
+      }
+    },
+    [navigate, search, searchPage],
+  );
 
   // โหลดโพสต์ยอดเยี่ยม
   useEffect(() => {
@@ -179,7 +182,7 @@ const Home = () => {
       } catch (e) {
         if (!cancelled) {
           if (e?.response?.status === 401) {
-            navigate("/login", { replace: true });
+            navigate("/", { replace: true });
             return;
           }
           setPopErr(
@@ -219,7 +222,7 @@ const Home = () => {
       } catch (e) {
         if (!cancelled) {
           if (e?.response?.status === 401) {
-            navigate("/login", { replace: true });
+            navigate("/", { replace: true });
             return;
           }
           setRecErr(
@@ -259,7 +262,7 @@ const Home = () => {
       } catch (e) {
         if (!cancelled) {
           if (e?.response?.status === 401) {
-            navigate("/login", { replace: true });
+            navigate("/", { replace: true });
             return;
           }
           setAllErr(
@@ -284,13 +287,13 @@ const Home = () => {
     }, 300);
 
     return () => clearTimeout(t);
-  }, [search]);
+  }, [search, fetchSearchPosts]);
 
   // เปลี่ยนหน้า search
   useEffect(() => {
     if (!search.trim()) return;
     fetchSearchPosts(search, searchPage);
-  }, [searchPage]);
+  }, [searchPage, search, fetchSearchPosts]);
 
   const goToPostDetail = (post) => {
     if (post?.id) navigate(`/posts/${post.id}`);

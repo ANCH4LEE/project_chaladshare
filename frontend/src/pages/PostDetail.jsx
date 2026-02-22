@@ -80,7 +80,7 @@ const PostDetail = () => {
     } catch (e) {
       const st = e?.response?.status;
       if (st === 401) {
-        navigate("/login", { replace: true });
+        navigate("/", { replace: true });
         return;
       }
       if (st === 403) setErr("คุณไม่มีสิทธิ์ดูโพสต์นี้");
