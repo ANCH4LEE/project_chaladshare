@@ -304,9 +304,7 @@ func main() {
 			social.DELETE("/requests/:id", friendsHandler.CancelFriendRequest)
 
 			social.DELETE("/friends/:id", friendsHandler.Unfriend)
-			/* 20-02 by ploy */
 			social.GET("/addfriends", friendsHandler.SearchAddFriend)
-			/* 20-02 by ploy */
 
 		}
 

@@ -98,6 +98,11 @@ type UserSearchItem struct {
 	UserID   int    `json:"user_id"`
 	Username string `json:"username"`
 	Avatar   string `json:"avatar"`
+
+	IsFriend         bool   `json:"is_friend"`
+	RequestID        int    `json:"request_id"`
+	RequestStatus    string `json:"request_status"`
+	RequestDirection string `json:"request_direction"`
 }
 
 /* 20-02 by ploy */

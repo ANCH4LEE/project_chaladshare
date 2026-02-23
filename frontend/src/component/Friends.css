@@ -79,6 +79,16 @@
   border: 2px solid #1877f2;
 }
 
+.friends-page .friends-pill--primary {
+  background: #c3ddff;  
+  color: #1a6dda;
+  border: 1px solid #b0d1fc;
+}
+
+.friends-page .friends-pill--primary:hover {
+  filter: brightness(0.97);
+}
+
 .friends-page .friends-pill--danger {
   background: #ffe6ea;
   color: #b42318;
@@ -87,6 +97,14 @@
 
 .friends-page .friends-pill--danger:hover {
   filter: brightness(0.98);
+}
+
+.friends-page .friends-pill--disabled {
+  background: #f1f2f4;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+  cursor: not-allowed;
+  opacity: 0.95;
 }
 
 .friends-page .friends-actions-right{

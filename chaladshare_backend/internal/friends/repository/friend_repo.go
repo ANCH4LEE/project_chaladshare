@@ -449,36 +449,51 @@ func (r *friendrepo) AreFriends(ctx context.Context, aID, bID int) (bool, error)
 	return err == nil, err
 }
 
-/* 20-02 by ploy */
-
 func (r *friendrepo) SearchAddFriend(ctx context.Context, actorID int, search string, limit, offset int) ([]models.UserSearchItem, error) {
 	const q = `
 	SELECT
 	  u.user_id,
 	  u.username,
-	  COALESCE(p.avatar_url,'') AS avatar
-	FROM users u
-	LEFT JOIN user_profiles p ON p.profile_user_id = u.user_id
-	WHERE u.user_id <> $1
-	  AND ($2 = '' OR u.username_ci LIKE '%' || lower($2) || '%')
+	  COALESCE(p.avatar_url,'') AS avatar,
 
-	  -- no are friends
-	  AND NOT EXISTS (
+	  -- case 2: เป็นเพื่อนแล้ว
+	  EXISTS (
 		SELECT 1 FROM friendships fs
 		WHERE fs.user_id = LEAST($1::int, u.user_id)
 		  AND fs.friend_id = GREATEST($1::int, u.user_id)
-	  )
+	  ) AS is_friend,
 
-	  -- no pending request
-	  AND NOT EXISTS (
-	    SELECT 1 FROM friend_requests fr
-	    WHERE (
-	      (fr.requester_user_id = $1 AND fr.addressee_user_id = u.user_id)
-	      OR
-	      (fr.requester_user_id = u.user_id AND fr.addressee_user_id = $1)
-	    )
-	    AND fr.request_status = 'pending'::friend_request_status
+	  -- case 3: pending (ถ้ามี)
+	  COALESCE(fr.request_id, 0) AS request_id,
+	  COALESCE(fr.request_status::text, '') AS request_status,
+	  CASE
+	    WHEN fr.request_status = 'pending'::friend_request_status
+	         AND fr.addressee_user_id = $1 THEN 'incoming'
+	    WHEN fr.request_status = 'pending'::friend_request_status
+	         AND fr.requester_user_id = $1 THEN 'outgoing'
+	    ELSE 'none'
+	  END AS request_direction
+
+	FROM users u
+	LEFT JOIN user_profiles p ON p.profile_user_id = u.user_id
+
+	-- ดึง pending ระหว่าง actor กับ user 
+	LEFT JOIN LATERAL (
+	  SELECT fr2.request_id, fr2.request_status, fr2.requester_user_id, fr2.addressee_user_id
+	  FROM friend_requests fr2
+	  WHERE (
+	    (fr2.requester_user_id = $1 AND fr2.addressee_user_id = u.user_id)
+	    OR
+	    (fr2.requester_user_id = u.user_id AND fr2.addressee_user_id = $1)
 	  )
+	  AND fr2.request_status = 'pending'::friend_request_status
+	  ORDER BY fr2.request_created_at DESC
+	  LIMIT 1
+	) fr ON true
+
+	WHERE u.user_id <> $1
+	  AND ($2 = '' OR u.username_ci LIKE '%' || lower($2) || '%')
+
 	ORDER BY u.username ASC, u.user_id ASC
 	LIMIT $3 OFFSET $4;
 	`
@@ -492,7 +507,15 @@ func (r *friendrepo) SearchAddFriend(ctx context.Context, actorID int, search st
 	out := []models.UserSearchItem{}
 	for rows.Next() {
 		var it models.UserSearchItem
-		if err := rows.Scan(&it.UserID, &it.Username, &it.Avatar); err != nil {
+		if err := rows.Scan(
+			&it.UserID,
+			&it.Username,
+			&it.Avatar,
+			&it.IsFriend,
+			&it.RequestID,
+			&it.RequestStatus,
+			&it.RequestDirection,
+		); err != nil {
 			return nil, err
 		}
 		out = append(out, it)
@@ -505,23 +528,7 @@ func (r *friendrepo) CountAddFriend(ctx context.Context, actorID int, search str
 	SELECT COUNT(*)
 	FROM users u
 	WHERE u.user_id <> $1
-	  AND ($2 = '' OR u.username_ci LIKE '%' || lower($2) || '%')
-
-	  AND NOT EXISTS (
-		SELECT 1 FROM friendships fs
-		WHERE fs.user_id = LEAST($1::int, u.user_id)
-		  AND fs.friend_id = GREATEST($1::int, u.user_id)
-	  )
-
-	   AND NOT EXISTS (
-	    SELECT 1 FROM friend_requests fr
-	    WHERE (
-	      (fr.requester_user_id = $1 AND fr.addressee_user_id = u.user_id)
-	      OR
-	      (fr.requester_user_id = u.user_id AND fr.addressee_user_id = $1)
-	    )
-	    AND fr.request_status = 'pending'::friend_request_status
-	  );
+	  AND ($2 = '' OR u.username_ci LIKE '%' || lower($2) || '%');
 	`
 
 	var n int
