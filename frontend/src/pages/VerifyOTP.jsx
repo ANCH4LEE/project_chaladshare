@@ -221,7 +221,7 @@ export default function VerifyOTP() {
         { headers: { "Content-Type": "application/json" }, timeout: 15000 }
       );
 
-      notifySuccess("สมัครสมาชิกสำเร็จ 🎉", 1500);
+      notifySuccess("สมัครสมาชิกสำเร็จ", 3000);
 
       if (navTimerRef.current) clearTimeout(navTimerRef.current);
       navTimerRef.current = setTimeout(() => {
