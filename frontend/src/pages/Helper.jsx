@@ -1,12 +1,11 @@
 import "../component/Helper.css";
 import Sidebar from "./Sidebar";
 import loginImg from "../assets/login.png";
-import CreatePostImg from "../assets/createpos.png";
+import CreatePostImg from "../assets/createpost.png";
 import PostDetailImg from "../assets/detail.png";
 import AiSumImg from "../assets/ai_sum.png";
-
-
-
+import FriendsImg from "../assets/friends.png";
+import ProfileImg from "../assets/profile.png";
 
 
 export default function Helper() {
@@ -21,8 +20,7 @@ export default function Helper() {
           <header className="helper-header">
             <h2>คู่มือการใช้งาน ChaladShare</h2>
             <p>
-              คู่มือแนะนำการใช้งานสำหรับผู้ใช้ใหม่ อธิบายเป็นลำดับขั้น
-              พร้อมภาพประกอบ และบอกชัดเจนว่าต้องกดอะไร
+              คู่มือแนะนำการใช้งานสำหรับผู้ใช้ อธิบายพร้อมภาพประกอบ 
             </p>
           </header>
 
@@ -141,10 +139,55 @@ export default function Helper() {
           </section>
 
           {/* วิธีที่ 5*/}
-         
+          <section className="helper-step">
+            <figure className="step-figure">
+              <h2 className="method-title">5. การจัดการรายการเพื่อน</h2>
+              <img src={FriendsImg} alt="Friends" />
+              <figcaption>ตัวอย่างหน้าจอรายการเพื่อน</figcaption>
+            </figure>
+
+            <p className="step-desc">
+              ผู้ใช้สามารถดูและลบรายการเพื่อนของตนเอง รวมถึงการจัดการคำขอเป็นเพื่อน (ตอบรับ/ปฏิเสธ) 
+             
+            </p>
+
+            {/* <div className="step-actions">
+              <div className="action-item">
+                <span className="action-label">Step to Step</span>
+                <div className="action-text">
+                  ขั้นตอนการ <b>สรุปเนื้อหาอัตโนมัติ</b> → กดปุ่มเพิ่มไฟล์ → เลือกไฟล์ที่ต้องการ → รอผลลัพธ์สักครู่
+                </div>
+              </div>
+            </div> */}
+          </section>
+
 
           {/* วิธีที่ 6*/}
-          
+          <section className="helper-step">
+            <figure className="step-figure">
+              <h2 className="method-title">6. การจัดการโปรไฟล์</h2>
+              <img src={ProfileImg} alt="Profile" />
+              <figcaption>ตัวอย่างหน้าจอโปรไฟล์ของฉัน</figcaption>
+            </figure>
+
+            <p className="step-desc">
+              ในหน้านี้จะแสดงข้อมูล และโพสต์ที่ผู้ใช้ได้ทำการอัปโหลด
+              โดยผู้ใช้สามารถจัดการข้อมูลของตนเองที่ปุ่ม "แก้ไขโปรไฟล์" 
+              ดูรายการโพสต์ที่ตนบันทึกไว้ที่ปุ่ม "รายการที่บันทึก" 
+              และจัดการโพสต์ของตนเอง ( แก้ไข / ลบ ) ด้านล่างมุมขวาของการ์ด
+              
+            </p>
+{/* 
+            <div className="step-actions">
+              <div className="action-item">
+                <span className="action-label">Step to Step</span>
+                <div className="action-text">
+                  ขั้นตอนการ <b>สรุปเนื้อหาอัตโนมัติ</b> → กดปุ่มเพิ่มไฟล์ → เลือกไฟล์ที่ต้องการ → รอผลลัพธ์สักครู่
+                </div>
+              </div>
+            </div> */}
+          </section>
+
 
         </div>
       </main>

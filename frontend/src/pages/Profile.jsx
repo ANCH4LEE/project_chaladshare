@@ -94,6 +94,28 @@ const Profile = () => {
       setSaving(true);
       setSaveErr("");
 
+      // ✅ validate เปลี่ยนรหัสผ่าน (แก้เฉพาะที่จำเป็น)
+      const hasAnyPwd =
+        !!pwdForm.current.trim() || !!pwdForm.newPwd.trim() || !!pwdForm.confirm.trim();
+
+      if (hasAnyPwd) {
+        if (!pwdForm.current.trim() || !pwdForm.newPwd.trim() || !pwdForm.confirm.trim()) {
+          setSaveErr("หากต้องการเปลี่ยนรหัสผ่าน กรุณากรอก รหัสผ่านปัจจุบัน / รหัสผ่านใหม่ / ยืนยันรหัสผ่านใหม่ ให้ครบ");
+          setSaving(false);
+          return;
+        }
+        if (pwdForm.newPwd.length < 8) {
+          setSaveErr("รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร");
+          setSaving(false);
+          return;
+        }
+        if (pwdForm.newPwd !== pwdForm.confirm) {
+          setSaveErr("ยืนยันรหัสผ่านใหม่ไม่ตรงกัน");
+          setSaving(false);
+          return;
+        }
+      }
+
       // อัปโหลดรูป
       let avatarUrl = null;
       let avatarStorage = null;
@@ -120,9 +142,9 @@ const Profile = () => {
         }),
       });
 
-      // เปลี่ยนรหัสผ่าน (ถ้ากรอกครบ)
+      // ✅ เปลี่ยนรหัสผ่าน (ถ้ากรอกครบ) — แก้ endpoint ให้ตรง main.go
       if (pwdForm.current && pwdForm.newPwd && pwdForm.confirm) {
-        await axios.post("/profile/password", {
+        await axios.post("/profile/change-password", {
           current_password: pwdForm.current,
           new_password: pwdForm.newPwd,
           confirm_password: pwdForm.confirm,
@@ -274,10 +296,7 @@ const Profile = () => {
                 const authorImg = rawAuthorAvatar ? toAbsUrl(rawAuthorAvatar) : Avatar;
 
                 const authorName =
-                  p.author_name ||
-                  p.username ||
-                  (isOwn && profile.name) ||
-                  "ผู้ใช้";
+                  p.author_name || p.username || (isOwn && profile.name) || "ผู้ใช้";
 
                 return {
                   id: p.post_id,
@@ -325,8 +344,7 @@ const Profile = () => {
           : [];
 
         const ownerRows = postRows.filter(
-          (p) =>
-            String(p.author_id ?? p.post_user_id ?? p.user_id) === String(ownerId)
+          (p) => String(p.author_id ?? p.post_user_id ?? p.user_id) === String(ownerId)
         );
 
         setPosts(format(ownerRows));
@@ -344,8 +362,7 @@ const Profile = () => {
             setFollowStatus("idle");
           }
 
-          // friend (ถ้า backend ไม่ส่ง rel.friend_request_outgoing มาจริง ๆ
-          // เราจะไปเช็คซ้ำใน checkFriendRelation ด้านล่าง)
+          // friend
           if (rel.is_friend === true || rel.is_friend === 1 || rel.is_friend === "1") {
             setFriendStatus("friends");
           } else if (rel.friend_request_outgoing) {
@@ -368,15 +385,11 @@ const Profile = () => {
   }, [isOwn, ownerId, targetId, myId, profile.name]);
 
   useEffect(() => {
-    // ถ้าเป็นโปรไฟล์ตัวเอง ไม่ต้องเช็ค
     if (isOwn || !myId || !targetId) return;
-
-    // ✅ ถ้ารู้อยู่แล้วว่าเป็นเพื่อน ก็ไม่ต้องยิงซ้ำ
     if (friendStatus === "friends") return;
 
     const checkFriendRelation = async () => {
       try {
-        // 1) เช็คว่าเป็นเพื่อนกันแล้วหรือยัง
         const friendsRes = await axios.get(`/social/friends/${myId}`, {
           params: { page: 1, size: 500, search: "" },
         });
@@ -388,7 +401,6 @@ const Profile = () => {
           return;
         }
 
-        // 2) ถ้ายังไม่ใช่เพื่อน → เช็ค outgoing requests (✅ แก้ให้ robust)
         const outgoingRes = await axios.get("/social/requests/outgoing", {
           params: { page: 1, size: 500 },
         });
@@ -406,18 +418,10 @@ const Profile = () => {
           return String(toId) === String(targetId);
         });
 
-        if (hasOutgoing) {
-          setFriendStatus("requested");
-        } else {
-          setFriendStatus("idle");
-        }
+        if (hasOutgoing) setFriendStatus("requested");
+        else setFriendStatus("idle");
       } catch (e) {
-        // ถ้ามี 401/500 จะได้เห็น ไม่เงียบจน UI เพี้ยน
-        console.error(
-          "checkFriendRelation failed:",
-          e?.response?.status,
-          e?.response?.data || e
-        );
+        console.error("checkFriendRelation failed:", e?.response?.status, e?.response?.data || e);
       }
     };
 
@@ -439,9 +443,7 @@ const Profile = () => {
           followers: Math.max(0, (p.followers ?? 0) - 1),
         }));
       } else {
-        await axios.post(`/social/follow`, {
-          followed_user_id: Number(targetId),
-        });
+        await axios.post(`/social/follow`, { followed_user_id: Number(targetId) });
         setFollowStatus("following");
         setProfile((p) => ({ ...p, followers: (p.followers ?? 0) + 1 }));
       }
@@ -460,7 +462,6 @@ const Profile = () => {
     }
   };
 
-  // ✅ ยกเลิกคำขอ (ตอน requested) — robust กับชื่อ field
   const onCancelFriendRequest = async () => {
     if (isOwn || !targetId) return;
 
@@ -495,7 +496,6 @@ const Profile = () => {
       }
 
       await axios.delete(`/social/requests/${requestId}`);
-
       setFriendStatus("idle");
       setFriendMenuOpen(false);
     } catch (e) {
@@ -503,7 +503,6 @@ const Profile = () => {
     }
   };
 
-  // ✅ เลิกเป็นเพื่อน (ตอน friends)
   const onUnfriend = async () => {
     if (isOwn || !targetId) return;
 
@@ -569,7 +568,6 @@ const Profile = () => {
                         {followStatus === "following" ? "กำลังติดตาม" : "ติดตาม"}
                       </button>
 
-                      {/* ปุ่มเพื่อนแบบ 3 สถานะ + dropdown */}
                       <div className="friend-dropdown-wrap">
                         <button
                           className={`btn-friend ${
@@ -616,7 +614,6 @@ const Profile = () => {
                             </div>
                           )}
                       </div>
-                      {/* จบส่วนปุ่มเพื่อน */}
                     </div>
                   )}
                 </div>
@@ -642,12 +639,7 @@ const Profile = () => {
                     />
                     <label className="edit-upload-btn">
                       เปลี่ยนรูปโปรไฟล์
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={onPickAvatar}
-                        hidden
-                      />
+                      <input type="file" accept="image/*" onChange={onPickAvatar} hidden />
                     </label>
                   </div>
 
@@ -657,9 +649,7 @@ const Profile = () => {
                       <input
                         type="text"
                         value={editForm.name}
-                        onChange={(e) =>
-                          setEditForm((f) => ({ ...f, name: e.target.value }))
-                        }
+                        onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
                       />
                     </div>
 
@@ -668,9 +658,7 @@ const Profile = () => {
                       <input
                         type="email"
                         value={editForm.email}
-                        onChange={(e) =>
-                          setEditForm((f) => ({ ...f, email: e.target.value }))
-                        }
+                        onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
                       />
                     </div>
 
@@ -679,9 +667,7 @@ const Profile = () => {
                       <textarea
                         rows={3}
                         value={editForm.bio}
-                        onChange={(e) =>
-                          setEditForm((f) => ({ ...f, bio: e.target.value }))
-                        }
+                        onChange={(e) => setEditForm((f) => ({ ...f, bio: e.target.value }))}
                       />
                     </div>
 
@@ -694,9 +680,7 @@ const Profile = () => {
                             className="pw-input"
                             type={showPwd.current ? "text" : "password"}
                             value={pwdForm.current}
-                            onChange={(e) =>
-                              setPwdForm((p) => ({ ...p, current: e.target.value }))
-                            }
+                            onChange={(e) => setPwdForm((p) => ({ ...p, current: e.target.value }))}
                             placeholder="••••••••"
                           />
                           <button
@@ -731,9 +715,8 @@ const Profile = () => {
                             className="pw-input"
                             type={showPwd.newPwd ? "text" : "password"}
                             value={pwdForm.newPwd}
-                            onChange={(e) =>
-                              setPwdForm((p) => ({ ...p, newPwd: e.target.value }))
-                            }
+                            onChange={(e) => setPwdForm((p) => ({ ...p, newPwd: e.target.value }))}
+                            placeholder="อย่างน้อย 8 ตัวอักษร"
                           />
                           <button
                             type="button"
@@ -753,9 +736,8 @@ const Profile = () => {
                             className="pw-input"
                             type={showPwd.confirm ? "text" : "password"}
                             value={pwdForm.confirm}
-                            onChange={(e) =>
-                              setPwdForm((p) => ({ ...p, confirm: e.target.value }))
-                            }
+                            onChange={(e) => setPwdForm((p) => ({ ...p, confirm: e.target.value }))}
+                            placeholder="พิมพ์ให้ตรงกับรหัสใหม่"
                           />
                           <button
                             type="button"
@@ -772,11 +754,7 @@ const Profile = () => {
                     {saveErr && <p className="edit-error">{saveErr}</p>}
 
                     <div className="edit-actions">
-                      <button
-                        className="btn-cancel"
-                        onClick={() => setIsEditing(false)}
-                        disabled={saving}
-                      >
+                      <button className="btn-cancel" onClick={() => setIsEditing(false)} disabled={saving}>
                         ยกเลิก
                       </button>
                       <button className="btn-save" onClick={submitEdit} disabled={saving}>
@@ -803,7 +781,7 @@ const Profile = () => {
                     className={`profile-tab ${activeTab === "saved" ? "active" : ""}`}
                     onClick={() => setActiveTab("saved")}
                   >
-                    รายการที่บันทึกไว้
+                    รายการที่บันทึก
                   </button>
                 )}
                 <div className={`profile-tab-underline ${activeTab === "saved" ? "saved" : ""}`} />
@@ -829,7 +807,6 @@ const Profile = () => {
                     >
                       <PostCard post={post} />
 
-                      {/* ปุ่มแก้ไข / ลบ เฉพาะโพสต์ของตัวเองในแท็บ "โพสต์" */}
                       {isOwn && activeTab === "posts" && (
                         <div className="profile-manage-row">
                           <button
