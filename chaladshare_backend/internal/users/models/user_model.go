@@ -29,6 +29,13 @@ type UserProfile struct {
 	Bio         *string `db:"bio"`
 }
 
+// change password
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+	ConfirmPassword string `json:"confirm_password"`
+}
+
 func (j UserProfile) ToOwnProfileResponse() OwnProfileResponse {
 	r := OwnProfileResponse{
 		UserID:    j.UserID,
@@ -92,10 +99,3 @@ type ViewedUserProfileResponse struct {
 	AvatarStore string `json:"avatar_storage"`
 	Bio         string `json:"bio"`
 }
-
-// change password
-// type ChangepasswordRequest struct {
-// 	Oldpassword     string `json:"old_password"`
-// 	Newpassword     string `json:"new_password"`
-// 	Confirmpassword string `json:"confirm_password"`
-// }

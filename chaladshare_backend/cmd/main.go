@@ -283,6 +283,8 @@ func main() {
 			profile.GET("", userHandler.GetOwnProfile)
 			profile.PUT("", userHandler.UpdateOwnProfile)
 			profile.GET("/:id", userHandler.GetViewedUserProfile)
+			profile.POST("/change-password", userHandler.ChangePassword)
+
 		}
 
 		social := protected.Group("/social")

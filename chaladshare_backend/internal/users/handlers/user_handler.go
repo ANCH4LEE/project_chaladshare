@@ -190,3 +190,37 @@ func (h *UserHandler) UpdateOwnProfile(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
+
+// ===== Change Password =====
+
+type changePasswordReq struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+	ConfirmPassword string `json:"confirm_password"`
+}
+
+func (h *UserHandler) ChangePassword(c *gin.Context) {
+	uid, ok := getUID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req models.ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
+		return
+	}
+
+	if req.NewPassword != req.ConfirmPassword {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ยืนยันรหัสผ่านใหม่ไม่ตรงกัน"})
+		return
+	}
+
+	if err := h.userSvc.ChangePassword(c.Request.Context(), uid, req.CurrentPassword, req.NewPassword); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}

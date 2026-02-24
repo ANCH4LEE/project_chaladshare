@@ -12,6 +12,9 @@ type UserRepository interface {
 	GetOwnProfile(ctx context.Context, userID int) (*models.OwnProfileResponse, error)
 	GetViewedUserProfile(ctx context.Context, userID int) (*models.ViewedUserProfileResponse, error)
 	UpdateOwnProfile(ctx context.Context, userID int, req *models.UpdateOwnProfileRequest) error
+
+	GetPasswordHash(ctx context.Context, userID int) (string, error)
+	UpdatePasswordHash(ctx context.Context, userID int, newHash string) error
 }
 
 type userRepo struct {
@@ -122,4 +125,23 @@ func (r *userRepo) UpdateOwnProfile(ctx context.Context, userID int, req *models
 	}
 
 	return nil
+}
+func (r *userRepo) GetPasswordHash(ctx context.Context, userID int) (string, error) {
+	var hash string
+	err := r.db.QueryRowContext(ctx,
+		`SELECT password_hash FROM users WHERE user_id = $1`,
+		userID,
+	).Scan(&hash)
+	if err != nil {
+		return "", err
+	}
+	return hash, nil
+}
+
+func (r *userRepo) UpdatePasswordHash(ctx context.Context, userID int, newHash string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE users SET password_hash = $1 WHERE user_id = $2`,
+		newHash, userID,
+	)
+	return err
 }
