@@ -1,41 +1,38 @@
 package models
 
-type Seedpost struct {
-	PostID int
-	Label  string
-	Vec    []float64
+type SeedItem struct {
+	DocumentID     int       `json:"document_id"`
+	StyleLabel     string    `json:"style_label"`
+	ClusterID      int       `json:"cluster_id"`
+	StyleVectorV16 []float64 `json:"style_vector_v16"`
 }
 
-type Candidatepost struct {
-	PostID      int    `json:"post_id"`
-	AuthorID    int    `json:"author_id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	CoverURL    string `json:"cover_url"`
-	Visibility  string `json:"visibility"`
-
-	AuthorName string `json:"authorName"`
-	AuthorImg  string `json:"authorImg"`
-	Tags       string `json:"tags"`
-
-	LikeCount int  `json:"like_count"`
-	IsLiked   bool `json:"is_liked"`
-	IsSaved   bool `json:"is_saved"`
-
-	Vec []float64 `json:"-"`
+type CandidateItem struct {
+	PostID         int       `json:"post_id"`
+	DocumentID     int       `json:"document_id"`
+	StyleLabel     string    `json:"style_label"`
+	ClusterID      int       `json:"cluster_id"`
+	StyleVectorV16 []float64 `json:"style_vector_v16"`
 }
 
-type RecommendPost struct {
-	ID         int    `json:"id"`
-	Title      string `json:"title"`
-	Tags       string `json:"tags"`
-	Img        string `json:"img"`
-	AuthorName string `json:"authorName"`
-	AuthorImg  string `json:"authorImg"`
+type ColabRecommendFromLikedReq struct {
+	Seeds            []SeedItem      `json:"seeds"`
+	Candidates       []CandidateItem `json:"candidates"`
+	TopK             int             `json:"top_k"`
+	BoostSameCluster float64         `json:"boost_same_cluster"`
+	MaxPerCluster    int             `json:"max_per_cluster"`
+}
 
-	IsLiked   bool `json:"is_liked"`
-	LikeCount int  `json:"like_count"`
-	IsSaved   bool `json:"is_saved"`
+type ColabRecommendItem struct {
+	PostID                int     `json:"post_id"`
+	DocumentID            int     `json:"document_id"`
+	StyleLabel            string  `json:"style_label"`
+	ClusterID             int     `json:"cluster_id"`
+	Score                 float64 `json:"score"`
+	MatchedSeedDocumentID *int    `json:"matched_seed_document_id,omitempty"`
+}
 
-	Score float64 `json:"score,omitempty"`
+type ColabRecommendFromLikedResp struct {
+	Recommendations []ColabRecommendItem `json:"recommendations"`
+	Meta            map[string]any       `json:"meta,omitempty"`
 }

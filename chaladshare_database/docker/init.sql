@@ -241,14 +241,13 @@ create table if not exists post_stats (
     post_last_activity_at timestamptz default now() -- เวลากิจกรรมล่าสุด
 );
 
-/* 20-02 by ploy */
+
 CREATE INDEX IF NOT EXISTS idx_likes_post_id
 ON likes (like_post_id);
 
 CREATE INDEX IF NOT EXISTS idx_saved_posts_post_id
 ON saved_posts (save_post_id);
 
-/* 20-02 by ploy */
 
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS trigger AS $$
@@ -262,36 +261,18 @@ $$ LANGUAGE plpgsql;
 CREATE TABLE IF NOT EXISTS document_features (
   document_id      integer PRIMARY KEY
                   REFERENCES documents(document_id) ON DELETE CASCADE,
-
   feature_status   varchar(20) NOT NULL DEFAULT 'queued'
                   CHECK (feature_status IN ('queued','processing','done','failed')),
-
-  -- แยกประเภทไฟล์ (classification)
   style_label      varchar(20)
                   CHECK (style_label IN ('typed','handwritten','empty','not_typed','unknown')),
-
-  -- สำหรับ similarity / clustering
   style_vector_v16 vector(16),
-
-  -- เก็บ raw/compat ช่วงแรกเท่านั้น 
   style_vector_raw jsonb,
-
-  -- cluster กลุ่มย่อยภายในประเภท (typed/handwritten)
-  -- NULL = ยังไม่ทำ clustering
-  -- -1   = ไม่เข้า clustering (เช่น empty/not_typed/unknown)
-  -- >=0  = cluster จริง
-  cluster_id       integer
-                  CHECK (cluster_id IS NULL OR cluster_id >= -1),
-
-  -- เวลา update clustering รอบล่าสุด 
+  cluster_id       integer CHECK (cluster_id IS NULL OR cluster_id >= -1),
   cluster_updated_at timestamptz,
-
   content_text     text,
   content_embedding vector(768),
-
   classify_debug   jsonb, -- debug จาก classify
   process_trace    jsonb, -- trace ละเอียดจาก process_one_pdf 
-
   error_message    text,
   created_at       timestamptz NOT NULL DEFAULT now(),
   updated_at       timestamptz NOT NULL DEFAULT now()
@@ -323,5 +304,16 @@ CREATE INDEX IF NOT EXISTS ix_document_features_stylevec_hnsw
   USING hnsw (style_vector_v16 vector_cosine_ops)
   WHERE style_vector_v16 IS NOT NULL;
 
+CREATE TABLE IF NOT EXISTS recommendations (
+  rec_user_id   integer references users(user_id) on delete cascade,
+  rec_post_id   integer references posts(post_id) on delete cascade,
+  score         real not null,
+  seed_document_id integer,
+  created_at    timestamptz default now(),
+  primary key (rec_user_id, rec_post_id)
+);
+
+CREATE INDEX IF NOT EXISTS ix_recommendations_user_time
+ON recommendations (rec_user_id, created_at DESC);
 
 commit;

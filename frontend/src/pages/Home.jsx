@@ -8,9 +8,10 @@ import Sidebar from "./Sidebar";
 import PostCard from "../component/Postcard";
 import RankingCard from "../component/RankingCard";
 import Avatar from "../assets/default.png";
+import PdfPlaceholder from "../assets/default.png";
+import Footer from "../component/Footer";
 
 import "../component/Home.css";
-import Footer from "../component/Footer";
 
 const API_HOST = "http://localhost:8080";
 const toAbsUrl = (p) => {
@@ -22,7 +23,7 @@ const toAbsUrl = (p) => {
 
 const mapToCardPost = (p) => {
   const coverRaw = p.cover_url || p.post_cover_url || "";
-  const coverImg = coverRaw ? toAbsUrl(coverRaw) : "/img/pdf-placeholder.jpg";
+  const coverImg = coverRaw ? toAbsUrl(coverRaw) : PdfPlaceholder;
 
   const rawUrl = p.file_url || p.document_url || "";
   const isPdf = /\.pdf$/i.test(rawUrl || "");
@@ -60,7 +61,12 @@ const mapToCardPost = (p) => {
     title: p.post_title ?? p.title ?? p.Title ?? "",
     tags,
 
-    authorName: p.author_name ?? p.authorName ?? "ไม่ระบุ",
+    authorName:
+      p.author_name ??
+      p.authorName ??
+      p.username ??
+      p.user_username ??
+      "ไม่ระบุ",
     authorImg,
   };
 };
@@ -80,6 +86,7 @@ const Home = () => {
   const [allPosts, setAllPosts] = useState([]);
   const [loadingAll, setLoadingAll] = useState(true);
   const [allErr, setAllErr] = useState("");
+
   const navigate = useNavigate();
 
   // ค้นหาโพสต์
@@ -146,7 +153,7 @@ const Home = () => {
         setSearchTotal(totalRaw);
       } catch (e) {
         if (e?.response?.status === 401) {
-          navigate("/", { replace: true }); // ✅ เปลี่ยนจาก /login -> /
+          navigate("/", { replace: true });
           return;
         }
         setSearchErr(
@@ -201,6 +208,7 @@ const Home = () => {
     };
   }, [navigate]);
 
+  const recCards = recommendedPosts;
   // โหลดแนะนำ
   useEffect(() => {
     let cancelled = false;
@@ -431,9 +439,9 @@ const Home = () => {
               <div className="card-list">
                 {!loadingRec &&
                   !recErr &&
-                  recommendedPosts.map((post) => (
+                  recCards.map((post) => (
                     <div
-                      key={post.id}
+                      key={post.id ?? post.post_id}
                       onClick={() => goToPostDetail(post)}
                       style={{ cursor: "pointer" }}
                     >

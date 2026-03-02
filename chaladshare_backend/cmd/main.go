@@ -36,6 +36,7 @@ import (
 	FriendsRepo "chaladshare_backend/internal/friends/repository"
 	FriendsService "chaladshare_backend/internal/friends/service"
 
+	FeatureHandler "chaladshare_backend/internal/docfeatures/handlers"
 	FeatureRepo "chaladshare_backend/internal/docfeatures/repository"
 	FeatureService "chaladshare_backend/internal/docfeatures/service"
 
@@ -134,11 +135,31 @@ func main() {
 
 	featureRepository := FeatureRepo.NewFeatureRepo(db.GetDB())
 	featureService := FeatureService.NewFeatureService(featureRepository, aiClient)
+	featureHandler := FeatureHandler.NewFeatureHandler(featureService)
 
 	// file
 	fileRepository := FileRepo.NewFileRepository(db.GetDB())
 	fileService := FileService.NewFileService(fileRepository, featureService)
 	fileHandler := FileHandler.NewFileHandler(fileService)
+
+	if aiClient != nil {
+		// ใช้ interface assertion เพื่อไม่พังแม้ยังไม่ได้เพิ่ม method ใน interface
+		if b, ok := any(featureService).(interface{ BootstrapAutoClustering() }); ok {
+			b.BootstrapAutoClustering()
+			log.Println("[AUTO-CLUSTER] bootstrap started")
+		} else {
+			log.Println("[AUTO-CLUSTER] BootstrapAutoClustering() not found - add it to FeatureService interface")
+		}
+	} else {
+		log.Println("[AUTO-CLUSTER] skip bootstrap: aiClient is nil")
+	}
+
+	// recommend
+	recommendRepo := RecommendRepo.NewRecommendRepo(db.GetDB())
+	recommendReadRepo := RecommendRepo.NewRecommendReadRepo(db.GetDB())
+
+	recommendService := RecommendService.NewRecommendService(recommendRepo, aiClient)
+	recommendHandler := RecommendHandler.NewRecommendHandler(recommendService, recommendReadRepo)
 
 	// post like save
 	postRepository := PostRepo.NewPostRepository(db.GetDB())
@@ -146,21 +167,17 @@ func main() {
 
 	likeRepository := PostRepo.NewLikeRepository(db.GetDB())
 	likeService := PostService.NewLikeService(likeRepository)
+	likeHandler := PostHandler.NewLikeHandler(likeService, recommendService)
 
 	saveRepository := PostRepo.NewSaveRepository(db.GetDB())
 	saveService := PostService.NewSaveService(saveRepository)
 
-	postHandler := PostHandler.NewPostHandler(postService, likeService, saveService)
+	postHandler := PostHandler.NewPostHandler(postService, saveService)
 
 	// user
 	userRepository := UserRepo.NewUserRepository(db.GetDB())
 	userService := UserService.NewUserService(userRepository)
 	userHandler := UserHandler.NewUserHandler(userService, postService, friendsService)
-
-	// recommend
-	recommendRepo := RecommendRepo.NewRecommendRepo(db.GetDB())
-	recommendService := RecommendService.NewRecommendService(recommendRepo)
-	recommendHandler := RecommendHandler.NewRecommendHandler(recommendService)
 
 	go func() {
 		for {
@@ -186,7 +203,7 @@ func main() {
 		})
 	})
 
-	// ✅ allow origins (รองรับหลายโดเมน)
+	// allow origins (รองรับหลายโดเมน)
 	// ใช้ cfg.AllowOrigin เดิมได้ แต่แนะนำให้ทำให้มันเป็น csv ได้ เช่น:
 	// ALLOW_ORIGIN="http://localhost:3000,https://xxx.vercel.app"
 	allowOrigins := parseAllowOrigins(os.Getenv("ALLOW_ORIGIN"))
@@ -237,7 +254,7 @@ func main() {
 		authRoutes.POST("/refresh", authHandler.Refresh)
 
 		authRoutes.POST("/forgot-password", authHandler.ForgotPassword)
-		authRoutes.POST("/forgot-password/verify-otp", authHandler.VerifyForgotPasswordOTP) // ✅ เพิ่มบรรทัดนี้
+		authRoutes.POST("/forgot-password/verify-otp", authHandler.VerifyForgotPasswordOTP)
 		authRoutes.POST("/reset-password", authHandler.ResetPassword)
 
 		authRoutes.GET("/users", authHandler.GetAllUsers)
@@ -257,13 +274,11 @@ func main() {
 			posts.PUT("/:id", postHandler.UpdatePost)
 			posts.DELETE("/:id", postHandler.DeletePost)
 
-			posts.POST("/:id/like", postHandler.ToggleLike)
+			posts.POST("/:id/like", likeHandler.ToggleLike)
 			posts.POST("/:id/save", postHandler.ToggleSave)
 			posts.GET("/save", postHandler.GetSavedPosts)
-			/* 20-02 by ploy */
 			posts.GET("/popular", postHandler.GetPopularPosts)
 			posts.GET("/search", postHandler.SearchPosts)
-			/* 20-02 by ploy */
 
 		}
 
@@ -308,6 +323,13 @@ func main() {
 			social.DELETE("/friends/:id", friendsHandler.Unfriend)
 			social.GET("/addfriends", friendsHandler.SearchAddFriend)
 
+		}
+
+		docfeatures := protected.Group("/features")
+		{
+			docfeatures.GET("/vectors", featureHandler.GetVectors)
+			docfeatures.POST("/clusters/batch_update", featureHandler.BatchUpdateClusters)
+			docfeatures.POST("/clusters/run", featureHandler.RunClustering)
 		}
 
 		recommend := protected.Group("/recommend")

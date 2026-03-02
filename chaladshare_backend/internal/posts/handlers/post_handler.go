@@ -13,14 +13,12 @@ import (
 
 type PostHandler struct {
 	postService service.PostService
-	likeService service.LikeService
 	saveService service.SaveService
 }
 
-func NewPostHandler(postService service.PostService, likeService service.LikeService, saveService service.SaveService) *PostHandler {
+func NewPostHandler(postService service.PostService, saveService service.SaveService) *PostHandler {
 	return &PostHandler{
 		postService: postService,
-		likeService: likeService,
 		saveService: saveService,
 	}
 }
@@ -211,36 +209,6 @@ func (h *PostHandler) DeletePost(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
-}
-
-// toggle like
-func (h *PostHandler) ToggleLike(c *gin.Context) {
-	uid := c.GetInt("user_id")
-	if uid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	postID, err := strconv.Atoi(c.Param("id"))
-	if err != nil || postID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
-		return
-	}
-
-	// เรียก service ให้จัดการ toggle ให้
-	isLiked, likeCount, err := h.likeService.ToggleLike(uid, postID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"data": gin.H{
-			"post_id":    postID,
-			"is_liked":   isLiked,
-			"like_count": likeCount,
-		},
-	})
 }
 
 // ดึงรายการโพสต์ที่ user คนนี้บันทึกไว้

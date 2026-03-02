@@ -21,8 +21,7 @@ type Client struct {
 	HTTP    *http.Client
 
 	// timeout แยกตามงาน
-	ExtractTimeout   time.Duration
-	SummarizeTimeout time.Duration
+	ExtractTimeout time.Duration
 }
 
 func NewFromEnv() (*Client, error) {
@@ -34,11 +33,10 @@ func NewFromEnv() (*Client, error) {
 	key := os.Getenv("COLAB_API_KEY")
 
 	return &Client{
-		BaseURL:          base,
-		APIKey:           key,
-		HTTP:             &http.Client{},
-		ExtractTimeout:   180 * time.Second, // เท่าของเดิม
-		SummarizeTimeout: 10 * time.Minute,  // summarize นานกว่า
+		BaseURL:        base,
+		APIKey:         key,
+		HTTP:           &http.Client{},
+		ExtractTimeout: 180 * time.Second, // เท่าของเดิม
 	}, nil
 }
 

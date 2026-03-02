@@ -16,6 +16,12 @@ type DocFeaturesRepo interface {
 	SaveResult(input models.SaveResult) error
 	MarkFailed(documentID int, msg string) error
 	GetByDocumentID(documentID int) (*models.DocumentFeature, error)
+
+	//
+	ListVectors(label string, onlyUnclustered bool) ([]models.VectorItem, error)
+	BatchUpdateClusters(updates []models.ClusterUpdate) (int, error)
+	CountUnclustered(label string) (int, error)
+	CountClusterable(label string) (int, error)
 }
 
 type FeatureRepo struct {
@@ -132,4 +138,125 @@ func (r *FeatureRepo) GetByDocumentID(documentID int) (*models.DocumentFeature, 
 		return nil, err
 	}
 	return &out, nil
+}
+
+// helper float32 > 64
+func f32ToF64(a []float32) []float64 {
+	out := make([]float64, len(a))
+	for i, v := range a {
+		out[i] = float64(v)
+	}
+	return out
+}
+
+func (r *FeatureRepo) ListVectors(label string, onlyUnclustered bool) ([]models.VectorItem, error) {
+	q := `
+		SELECT document_id, style_label, style_vector_v16
+		FROM document_features
+		WHERE feature_status = $1
+		  AND style_label = $2
+		  AND ($3 = false OR cluster_id IS NULL)
+		ORDER BY document_id ASC;
+	`
+
+	rows, err := r.db.Query(q, models.FeatureDone, label, onlyUnclustered)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]models.VectorItem, 0, 128)
+
+	for rows.Next() {
+		var docID int
+		var styleLabel string
+		var v pgvector.Vector
+
+		if err := rows.Scan(&docID, &styleLabel, &v); err != nil {
+			return nil, err
+		}
+
+		item := models.VectorItem{
+			DocumentID:     docID,
+			StyleLabel:     styleLabel,
+			StyleVectorV16: f32ToF64(v.Slice()),
+		}
+		out = append(out, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (r *FeatureRepo) BatchUpdateClusters(updates []models.ClusterUpdate) (int, error) {
+	if len(updates) == 0 {
+		return 0, nil
+	}
+
+	tx, err := r.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	stmt, err := tx.Prepare(`
+	UPDATE document_features
+	SET cluster_id = $2, cluster_updated_at = NOW()
+	WHERE document_id = $1;
+`)
+	if err != nil {
+		return 0, err
+	}
+	defer stmt.Close()
+
+	updated := 0
+	for _, u := range updates {
+		if u.DocumentID <= 0 {
+			continue
+		}
+		if _, err := stmt.Exec(u.DocumentID, u.ClusterID); err != nil {
+			return 0, err
+		}
+		updated++
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return updated, nil
+}
+
+func (r *FeatureRepo) CountUnclustered(label string) (int, error) {
+	q := `
+        SELECT COUNT(*)
+        FROM document_features
+        WHERE feature_status = $1
+          AND style_label = $2
+          AND style_vector_v16 IS NOT NULL
+          AND cluster_id IS NULL;
+    `
+	var n int
+	if err := r.db.QueryRow(q, models.FeatureDone, label).Scan(&n); err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+func (r *FeatureRepo) CountClusterable(label string) (int, error) {
+	q := `
+        SELECT COUNT(*)
+        FROM document_features
+        WHERE feature_status = $1
+          AND style_label = $2
+          AND style_vector_v16 IS NOT NULL;
+    `
+	var n int
+	if err := r.db.QueryRow(q, models.FeatureDone, label).Scan(&n); err != nil {
+		return 0, err
+	}
+	return n, nil
 }
