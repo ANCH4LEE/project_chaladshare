@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { useNotification } from "../component/Notification";
 import { VscEye, VscEyeClosed } from "react-icons/vsc";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import axios from "axios";
@@ -20,11 +21,12 @@ const toAbsUrl = (p) => {
 const Profile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { success: notifySuccess, error: notifyError } = useNotification();
 
   const [myId, setMyId] = useState(null);
   const isOwn = useMemo(
     () => (myId == null ? null : !id || String(id) === String(myId)),
-    [id, myId]
+    [id, myId],
   );
   const targetId = id || null;
   const ownerId = useMemo(() => {
@@ -94,13 +96,21 @@ const Profile = () => {
       setSaving(true);
       setSaveErr("");
 
-      // ✅ validate เปลี่ยนรหัสผ่าน (แก้เฉพาะที่จำเป็น)
+      // validate เปลี่ยนรหัสผ่าน (แก้เฉพาะที่จำเป็น)
       const hasAnyPwd =
-        !!pwdForm.current.trim() || !!pwdForm.newPwd.trim() || !!pwdForm.confirm.trim();
+        !!pwdForm.current.trim() ||
+        !!pwdForm.newPwd.trim() ||
+        !!pwdForm.confirm.trim();
 
       if (hasAnyPwd) {
-        if (!pwdForm.current.trim() || !pwdForm.newPwd.trim() || !pwdForm.confirm.trim()) {
-          setSaveErr("หากต้องการเปลี่ยนรหัสผ่าน กรุณากรอก รหัสผ่านปัจจุบัน / รหัสผ่านใหม่ / ยืนยันรหัสผ่านใหม่ ให้ครบ");
+        if (
+          !pwdForm.current.trim() ||
+          !pwdForm.newPwd.trim() ||
+          !pwdForm.confirm.trim()
+        ) {
+          setSaveErr(
+            "หากต้องการเปลี่ยนรหัสผ่าน กรุณากรอก รหัสผ่านปัจจุบัน / รหัสผ่านใหม่ / ยืนยันรหัสผ่านใหม่ ให้ครบ",
+          );
           setSaving(false);
           return;
         }
@@ -134,7 +144,6 @@ const Profile = () => {
       // edit profile
       await axios.put("/profile", {
         username: editForm.name,
-        email: editForm.email,
         bio: editForm.bio,
         ...(avatarUrl && {
           avatar_url: avatarUrl,
@@ -142,7 +151,6 @@ const Profile = () => {
         }),
       });
 
-      // ✅ เปลี่ยนรหัสผ่าน (ถ้ากรอกครบ) — แก้ endpoint ให้ตรง main.go
       if (pwdForm.current && pwdForm.newPwd && pwdForm.confirm) {
         await axios.post("/profile/change-password", {
           current_password: pwdForm.current,
@@ -155,8 +163,8 @@ const Profile = () => {
       const fullAvatarUrl = avatarPreview
         ? avatarPreview
         : avatarUrl
-        ? toAbsUrl(avatarUrl)
-        : profile.avatar;
+          ? toAbsUrl(avatarUrl)
+          : profile.avatar;
 
       setProfile((p) => ({
         ...p,
@@ -165,12 +173,27 @@ const Profile = () => {
         bio: editForm.bio,
         avatar: avatarPreview || fullAvatarUrl || p.avatar,
       }));
-      setIsEditing(false);
-    } catch (e) {
-      setSaveErr(e?.response?.data?.error || e.message || "บันทึกล้มเหลว");
-    } finally {
-      setSaving(false);
-    }
+       notifySuccess("แก้ไขโปรไฟล์สำเร็จ", 2500);
+
+       setIsEditing(false);
+     } catch (e) {
+  const raw =
+    e?.response?.data?.error ||
+    e?.response?.data?.message ||
+    e?.message ||
+    "บันทึกล้มเหลว";
+
+  const msg =
+    String(raw).includes("users_username_key") ||
+    String(raw).toLowerCase().includes("duplicate key") ||
+    String(raw).includes("23505")
+      ? "ชื่อผู้ใช้นี้ถูกใช้งานแล้ว"
+      : raw;
+
+  setSaveErr(msg);
+} finally {
+  setSaving(false);
+}
   };
 
   const [posts, setPosts] = useState([]);
@@ -203,31 +226,51 @@ const Profile = () => {
     if (post?.id) navigate(`/posts/${post.id}`);
   };
 
-  // ---------- ฟังก์ชัน “แก้ไข / ลบโพสต์ของฉัน” ----------
-  const handleEditPost = (event, post) => {
-    event.stopPropagation();
-    if (!post?.id) return;
-    navigate(`/posts/${post.id}/edit`);
-  };
+  // แก้ไข ลบโพสต์
+const [deleteOpen, setDeleteOpen] = useState(false);
+const [deleteTarget, setDeleteTarget] = useState(null); // เก็บ post ที่จะลบ
+const [deleting, setDeleting] = useState(false);
 
-  const handleDeletePost = async (event, post) => {
-    event.stopPropagation();
-    if (!post?.id) return;
+const handleEditPost = (event, post) => {
+  event.stopPropagation();
+  if (!post?.id) return;
+  navigate(`/posts/${post.id}/edit`);
+};
 
-    const ok = window.confirm("คุณต้องการลบโพสต์นี้หรือไม่?");
-    if (!ok) return;
+// ✅ เปลี่ยนจากลบทันที -> เปิด popup ยืนยัน
+const handleDeletePost = (event, post) => {
+  event.stopPropagation();
+  if (!post?.id) return;
+  setDeleteTarget(post);
+  setDeleteOpen(true);
+};
 
-    try {
-      await axios.delete(`/posts/${post.id}`);
-      setPosts((list) => list.filter((p) => p.id !== post.id));
-      setProfile((p) => ({
-        ...p,
-        posts: Math.max(0, (p.posts ?? 0) - 1),
-      }));
-    } catch (e) {
-      alert(e?.response?.data?.error || "ลบโพสต์ไม่สำเร็จ");
-    }
-  };
+// ✅ กด “ลบโพสต์” ใน popup ถึงจะลบจริง
+const confirmDelete = async () => {
+  if (!deleteTarget?.id) return;
+
+  try {
+    setDeleting(true);
+
+    await axios.delete(`/posts/${deleteTarget.id}`);
+
+    setPosts((list) => list.filter((p) => p.id !== deleteTarget.id));
+    setProfile((p) => ({
+      ...p,
+      posts: Math.max(0, (p.posts ?? 0) - 1),
+    }));
+
+    setDeleteOpen(false);
+    setDeleteTarget(null);
+
+    notifySuccess("ลบโพสต์สำเร็จ", 2500);
+  } catch (e) {
+    const msg = e?.response?.data?.error || "ลบโพสต์ไม่สำเร็จ";
+    notifyError(msg, 2500);
+  } finally {
+    setDeleting(false);
+  }
+};
 
   // โหลด myId
   useEffect(() => {
@@ -261,7 +304,7 @@ const Profile = () => {
             });
 
         const statsUserId = isOwn
-          ? prof?.data?.user_id ?? prof?.data?.id ?? myId
+          ? (prof?.data?.user_id ?? prof?.data?.id ?? myId)
           : ownerId;
         const statsRes = await axios.get(`/social/stats/${statsUserId}`);
         const stats = statsRes?.data ?? {};
@@ -289,14 +332,19 @@ const Profile = () => {
                 const imgSrc = coverRaw
                   ? toAbsUrl(coverRaw)
                   : !fileRaw || isPdf
-                  ? "/img/pdf-placeholder.jpg"
-                  : toAbsUrl(fileRaw);
+                    ? "/img/pdf-placeholder.jpg"
+                    : toAbsUrl(fileRaw);
 
                 const rawAuthorAvatar = p.avatar_url || "";
-                const authorImg = rawAuthorAvatar ? toAbsUrl(rawAuthorAvatar) : Avatar;
+                const authorImg = rawAuthorAvatar
+                  ? toAbsUrl(rawAuthorAvatar)
+                  : Avatar;
 
                 const authorName =
-                  p.author_name || p.username || (isOwn && profile.name) || "ผู้ใช้";
+                  p.author_name ||
+                  p.username ||
+                  (isOwn && profile.name) ||
+                  "ผู้ใช้";
 
                 return {
                   id: p.post_id,
@@ -309,7 +357,9 @@ const Profile = () => {
                   is_saved: !!p.is_saved,
                   title: p.post_title,
                   tags: Array.isArray(p.tags)
-                    ? p.tags.map((t) => (t.startsWith("#") ? t : `#${t}`)).join(" ")
+                    ? p.tags
+                        .map((t) => (t.startsWith("#") ? t : `#${t}`))
+                        .join(" ")
                     : "",
                   authorId: p.author_id ?? p.post_user_id ?? p.user_id,
                   authorName,
@@ -319,7 +369,9 @@ const Profile = () => {
             : [];
 
         setProfile((prev) => {
-          const avatarFull = rawAvatar ? toAbsUrl(rawAvatar) : prev.avatar || Avatar;
+          const avatarFull = rawAvatar
+            ? toAbsUrl(rawAvatar)
+            : prev.avatar || Avatar;
           return {
             ...prev,
             name: prof?.data?.username ?? prev.name,
@@ -335,16 +387,18 @@ const Profile = () => {
         const postRows = Array.isArray(postsRes?.data?.data)
           ? postsRes.data.data
           : Array.isArray(postsRes?.data)
-          ? postsRes.data
-          : [];
+            ? postsRes.data
+            : [];
         const savedRows = Array.isArray(savedRes?.data?.data)
           ? savedRes.data.data
           : Array.isArray(savedRes?.data)
-          ? savedRes.data
-          : [];
+            ? savedRes.data
+            : [];
 
         const ownerRows = postRows.filter(
-          (p) => String(p.author_id ?? p.post_user_id ?? p.user_id) === String(ownerId)
+          (p) =>
+            String(p.author_id ?? p.post_user_id ?? p.user_id) ===
+            String(ownerId),
         );
 
         setPosts(format(ownerRows));
@@ -363,7 +417,11 @@ const Profile = () => {
           }
 
           // friend
-          if (rel.is_friend === true || rel.is_friend === 1 || rel.is_friend === "1") {
+          if (
+            rel.is_friend === true ||
+            rel.is_friend === 1 ||
+            rel.is_friend === "1"
+          ) {
             setFriendStatus("friends");
           } else if (rel.friend_request_outgoing) {
             setFriendStatus("requested");
@@ -394,7 +452,9 @@ const Profile = () => {
           params: { page: 1, size: 500, search: "" },
         });
         const friendItems = friendsRes.data.items || [];
-        const isFriend = friendItems.some((f) => String(f.user_id) === String(targetId));
+        const isFriend = friendItems.some(
+          (f) => String(f.user_id) === String(targetId),
+        );
 
         if (isFriend) {
           setFriendStatus("friends");
@@ -421,7 +481,11 @@ const Profile = () => {
         if (hasOutgoing) setFriendStatus("requested");
         else setFriendStatus("idle");
       } catch (e) {
-        console.error("checkFriendRelation failed:", e?.response?.status, e?.response?.data || e);
+        console.error(
+          "checkFriendRelation failed:",
+          e?.response?.status,
+          e?.response?.data || e,
+        );
       }
     };
 
@@ -443,7 +507,9 @@ const Profile = () => {
           followers: Math.max(0, (p.followers ?? 0) - 1),
         }));
       } else {
-        await axios.post(`/social/follow`, { followed_user_id: Number(targetId) });
+        await axios.post(`/social/follow`, {
+          followed_user_id: Number(targetId),
+        });
         setFollowStatus("following");
         setProfile((p) => ({ ...p, followers: (p.followers ?? 0) + 1 }));
       }
@@ -491,7 +557,10 @@ const Profile = () => {
 
       const requestId = req.request_id ?? req.friend_request_id ?? req.id;
       if (!requestId) {
-        console.warn("No request id field found in outgoing request item:", req);
+        console.warn(
+          "No request id field found in outgoing request item:",
+          req,
+        );
         return;
       }
 
@@ -517,7 +586,7 @@ const Profile = () => {
 
   const showing = useMemo(
     () => (activeTab === "posts" ? posts : savedPosts),
-    [activeTab, posts, savedPosts]
+    [activeTab, posts, savedPosts],
   );
 
   if (isOwn == null) {
@@ -544,14 +613,20 @@ const Profile = () => {
           <div className="profile-shell">
             {/* Header */}
             <section className="profile-header">
-              <img src={profile.avatar} alt={profile.name} className="profile-avatar" />
+              <img
+                src={profile.avatar}
+                alt={profile.name}
+                className="profile-avatar"
+              />
               <div className="profile-info">
                 <div className="profile-toprow">
                   {isOwn ? (
                     <h2 className="profile-name">{profile.name || "—"}</h2>
                   ) : (
                     <h2 className="profile-name">
-                      <Link to={`/profile/${targetId}`}>{profile.name || "—"}</Link>
+                      <Link to={`/profile/${targetId}`}>
+                        {profile.name || "—"}
+                      </Link>
                     </h2>
                   )}
 
@@ -565,7 +640,9 @@ const Profile = () => {
                         className={`btn-follow ${followStatus === "following" ? "is-following" : ""}`}
                         onClick={onToggleFollow}
                       >
-                        {followStatus === "following" ? "กำลังติดตาม" : "ติดตาม"}
+                        {followStatus === "following"
+                          ? "กำลังติดตาม"
+                          : "ติดตาม"}
                       </button>
 
                       <div className="friend-dropdown-wrap">
@@ -574,8 +651,8 @@ const Profile = () => {
                             friendStatus === "friends"
                               ? "is-friends"
                               : friendStatus === "requested"
-                              ? "is-requested"
-                              : ""
+                                ? "is-requested"
+                                : ""
                           }`}
                           onClick={() => {
                             if (friendStatus === "idle") onAddFriend();
@@ -585,11 +662,12 @@ const Profile = () => {
                           {friendStatus === "friends"
                             ? "เพื่อน"
                             : friendStatus === "requested"
-                            ? "กำลังรอการตอบรับ"
-                            : "+ เพิ่มเพื่อน"}
+                              ? "กำลังรอการตอบรับ"
+                              : "+ เพิ่มเพื่อน"}
                         </button>
 
-                        {(friendStatus === "requested" || friendStatus === "friends") &&
+                        {(friendStatus === "requested" ||
+                          friendStatus === "friends") &&
                           friendMenuOpen && (
                             <div className="friend-dropdown">
                               {friendStatus === "requested" && (
@@ -627,7 +705,7 @@ const Profile = () => {
               </div>
             </section>
 
-            {/* ===== Edit Card (เฉพาะเจ้าของ/โหมดแก้ไข) ===== */}
+            {/* Edit Card */}
             {isOwn && isEditing && (
               <section className="edit-card">
                 <div className="edit-grid">
@@ -639,7 +717,12 @@ const Profile = () => {
                     />
                     <label className="edit-upload-btn">
                       เปลี่ยนรูปโปรไฟล์
-                      <input type="file" accept="image/*" onChange={onPickAvatar} hidden />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={onPickAvatar}
+                        hidden
+                      />
                     </label>
                   </div>
 
@@ -649,16 +732,17 @@ const Profile = () => {
                       <input
                         type="text"
                         value={editForm.name}
-                        onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                        onChange={(e) =>
+                          setEditForm((f) => ({ ...f, name: e.target.value }))
+                        }
                       />
                     </div>
 
                     <div className="edit-field">
                       <label>อีเมล</label>
-                      <input
-                        type="email"
-                        value={editForm.email}
-                        onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+                      <input type="email" 
+                      value={editForm.email} 
+                      readOnly
                       />
                     </div>
 
@@ -667,7 +751,9 @@ const Profile = () => {
                       <textarea
                         rows={3}
                         value={editForm.bio}
-                        onChange={(e) => setEditForm((f) => ({ ...f, bio: e.target.value }))}
+                        onChange={(e) =>
+                          setEditForm((f) => ({ ...f, bio: e.target.value }))
+                        }
                       />
                     </div>
 
@@ -680,15 +766,24 @@ const Profile = () => {
                             className="pw-input"
                             type={showPwd.current ? "text" : "password"}
                             value={pwdForm.current}
-                            onChange={(e) => setPwdForm((p) => ({ ...p, current: e.target.value }))}
-                            placeholder="••••••••"
+                            onChange={(e) =>
+                              setPwdForm((p) => ({
+                                ...p,
+                                current: e.target.value,
+                              }))
+                            }
+                            placeholder="กรอกรหัสผ่านปัจจุบัน"
                           />
                           <button
                             type="button"
                             className="pw-toggle"
                             onClick={() => toggleShow("current")}
-                            aria-label={showPwd.current ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
-                            title={showPwd.current ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
+                            aria-label={
+                              showPwd.current ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"
+                            }
+                            title={
+                              showPwd.current ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"
+                            }
                           >
                             {showPwd.current ? <VscEyeClosed /> : <VscEye />}
                           </button>
@@ -715,14 +810,21 @@ const Profile = () => {
                             className="pw-input"
                             type={showPwd.newPwd ? "text" : "password"}
                             value={pwdForm.newPwd}
-                            onChange={(e) => setPwdForm((p) => ({ ...p, newPwd: e.target.value }))}
+                            onChange={(e) =>
+                              setPwdForm((p) => ({
+                                ...p,
+                                newPwd: e.target.value,
+                              }))
+                            }
                             placeholder="อย่างน้อย 8 ตัวอักษร"
                           />
                           <button
                             type="button"
                             className="pw-toggle"
                             onClick={() => toggleShow("newPwd")}
-                            aria-label={showPwd.newPwd ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
+                            aria-label={
+                              showPwd.newPwd ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"
+                            }
                           >
                             {showPwd.newPwd ? <VscEyeClosed /> : <VscEye />}
                           </button>
@@ -736,14 +838,21 @@ const Profile = () => {
                             className="pw-input"
                             type={showPwd.confirm ? "text" : "password"}
                             value={pwdForm.confirm}
-                            onChange={(e) => setPwdForm((p) => ({ ...p, confirm: e.target.value }))}
+                            onChange={(e) =>
+                              setPwdForm((p) => ({
+                                ...p,
+                                confirm: e.target.value,
+                              }))
+                            }
                             placeholder="พิมพ์ให้ตรงกับรหัสใหม่"
                           />
                           <button
                             type="button"
                             className="pw-toggle"
                             onClick={() => toggleShow("confirm")}
-                            aria-label={showPwd.confirm ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
+                            aria-label={
+                              showPwd.confirm ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"
+                            }
                           >
                             {showPwd.confirm ? <VscEyeClosed /> : <VscEye />}
                           </button>
@@ -754,10 +863,18 @@ const Profile = () => {
                     {saveErr && <p className="edit-error">{saveErr}</p>}
 
                     <div className="edit-actions">
-                      <button className="btn-cancel" onClick={() => setIsEditing(false)} disabled={saving}>
+                      <button
+                        className="btn-cancel"
+                        onClick={() => setIsEditing(false)}
+                        disabled={saving}
+                      >
                         ยกเลิก
                       </button>
-                      <button className="btn-save" onClick={submitEdit} disabled={saving}>
+                      <button
+                        className="btn-save"
+                        onClick={submitEdit}
+                        disabled={saving}
+                      >
                         {saving ? "กำลังบันทึก…" : "บันทึกการแก้ไข"}
                       </button>
                     </div>
@@ -765,7 +882,7 @@ const Profile = () => {
                 </div>
               </section>
             )}
-            {/* ===== /Edit Card ===== */}
+            {/* Edit*/}
 
             {/* Tabs */}
             <div className="profile-tabs">
@@ -784,7 +901,9 @@ const Profile = () => {
                     รายการที่บันทึก
                   </button>
                 )}
-                <div className={`profile-tab-underline ${activeTab === "saved" ? "saved" : ""}`} />
+                <div
+                  className={`profile-tab-underline ${activeTab === "saved" ? "saved" : ""}`}
+                />
               </div>
             </div>
 
@@ -832,6 +951,50 @@ const Profile = () => {
                 </div>
               )}
             </section>
+
+          {deleteOpen && (
+            <div
+              className="modal-overlay"
+              onClick={() => {
+                if (deleting) return;
+                setDeleteOpen(false);
+                setDeleteTarget(null);
+              }}
+            >
+              <div
+                className="modal-card"
+                role="dialog"
+                aria-modal="true"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="modal-title">ยืนยันการลบโพสต์</h3>
+                <p className="modal-desc">
+                  คุณต้องการลบโพสต์ <b>{deleteTarget?.title || ""}</b> ใช่ไหม?
+                </p>
+
+                <div className="modal-actions">
+                  <button
+                    className="modal-btn"
+                    onClick={() => {
+                      setDeleteOpen(false);
+                      setDeleteTarget(null);
+                    }}
+                    disabled={deleting}
+                  >
+                    ยกเลิก
+                  </button>
+
+                  <button
+                    className="modal-btn danger"
+                    onClick={confirmDelete}
+                    disabled={deleting}
+                  >
+                    {deleting ? "กำลังลบ..." : "ลบโพสต์"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           </div>
         </main>
       </div>

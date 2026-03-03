@@ -70,18 +70,31 @@ height: 100vh + overflow-y: scroll
   color: var(--text);
 }
 
-.profile-page .profile-btn-edit {
+/* ปุ่มแก้ไขโปรไฟล์  */
+.profile-page .profile-btn-edit{
   margin-left: auto;
-  background: #f6f9ff;
-  color: var(--text);
-  border: 1px solid #d0e3fa;
-  border-radius: 12px;
-  padding: 8px 14px;
-  font-weight: 500;
+
+  height: 34px;
+  padding: 0 18px;
+  border-radius: 999px;     
+  box-sizing: border-box;
+
+  background: transparent;  
+  color: #027CBB;
+  border: 2px solid #027CBB;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background .15s ease, transform .08s ease, filter .15s ease;
 }
-.profile-page .profile-btn-edit:hover { background: #e7f2ff; }
+
+.profile-page .profile-btn-edit:hover{
+  background: rgba(2,124,187,.08); /* hover จางๆ */
+}
+
 
 .profile-page .profile-bio {
   color: var(--muted);
@@ -269,7 +282,7 @@ height: 100vh + overflow-y: scroll
   .profile-page .card { width: 100%; max-width: 350px; }
 }
 
-/* ---------- ปุ่ม “แก้ไข / ลบโพสต์ของฉัน” ใต้การ์ด ---------- */
+/* แก้ไข / ลบโพสต์ */
 
 .profile-page .profile-card-wrapper {
   width: 350px;                 /* กว้างเท่าการ์ดเดิม */
@@ -397,6 +410,7 @@ height: 100vh + overflow-y: scroll
   border-color: #9cc8ff;
   box-shadow: 0 0 0 3px rgba(0, 153, 255, .1);
 }
+
 
 .profile-page .edit-actions {
   display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px;
@@ -586,7 +600,7 @@ height: 100vh + overflow-y: scroll
   color: #fff;
 }
 
-/* ===== Dropdown ===== */
+/* Dropdown */
 .friend-dropdown-wrap {
   position: relative;
   display: inline-block;
@@ -634,4 +648,40 @@ height: 100vh + overflow-y: scroll
   .profile-page .edit-grid { grid-template-columns: 1fr; }
   .profile-page .edit-avatar-col { flex-direction: row; justify-content: center; }
   .profile-page .forgot-link{ padding: 10px 0; }
+}
+
+.modal-overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.modal-card{
+  width: min(420px, 92vw);
+  background: #fff;
+  border-radius: 12px;
+  padding: 18px 18px 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+}
+.modal-title{ margin: 0 0 8px; font-size: 18px; }
+.modal-desc{ margin: 0 0 16px; color: #444; }
+.modal-actions{
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.modal-btn{
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid #c4c3c3;
+  background: #fff;
+  cursor: pointer;
+}
+.modal-btn.danger{
+  background: #ff4b8a;
+  border: 1.5px solid #ff4b8a;
+  color: #ffffff;
 }
