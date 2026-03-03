@@ -22,6 +22,7 @@ type DocFeaturesRepo interface {
 	BatchUpdateClusters(updates []models.ClusterUpdate) (int, error)
 	CountUnclustered(label string) (int, error)
 	CountClusterable(label string) (int, error)
+	DeleteByDocumentID(documentID int) error
 }
 
 type FeatureRepo struct {
@@ -259,4 +260,9 @@ func (r *FeatureRepo) CountClusterable(label string) (int, error) {
 		return 0, err
 	}
 	return n, nil
+}
+
+func (r *FeatureRepo) DeleteByDocumentID(documentID int) error {
+	_, err := r.db.Exec(`DELETE FROM document_features WHERE document_id = $1`, documentID)
+	return err
 }

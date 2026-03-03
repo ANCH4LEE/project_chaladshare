@@ -22,6 +22,7 @@ type FeatureService interface {
 	BatchUpdateClusters(updates []models.ClusterUpdate) (int, error)
 	RunClustering(label string, onlyUnclustered bool, k int) (int, error)
 	BootstrapAutoClustering()
+	DeleteByDocumentID(documentID int) error
 }
 
 type featureService struct {
@@ -203,8 +204,6 @@ func (s *featureService) autoClusterIfReady(label string) {
 	if nAll >= 30 {
 		k = 6
 	}
-	// จะ fix k=4 ตลอดก็ได้ ถ้าไม่อยากให้มันเปลี่ยน
-
 	log.Printf("[AUTO-CLUSTER] RUN label=%s k=%d (recluster ALL)", label, k)
 
 	updated, err := s.RunClustering(label, false, k) // false = recluster ทั้งชุด
@@ -213,4 +212,11 @@ func (s *featureService) autoClusterIfReady(label string) {
 		return
 	}
 	log.Printf("[AUTO-CLUSTER] DONE label=%s updated=%d", label, updated)
+}
+
+func (s *featureService) DeleteByDocumentID(documentID int) error {
+	if documentID <= 0 {
+		return fmt.Errorf("invalid documentID")
+	}
+	return s.featureRepo.DeleteByDocumentID(documentID)
 }

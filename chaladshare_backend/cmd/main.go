@@ -163,7 +163,7 @@ func main() {
 
 	// post like save
 	postRepository := PostRepo.NewPostRepository(db.GetDB())
-	postService := PostService.NewPostService(postRepository, friendsService)
+	postService := PostService.NewPostService(postRepository, friendsService, fileService)
 
 	likeRepository := PostRepo.NewLikeRepository(db.GetDB())
 	likeService := PostService.NewLikeService(likeRepository)

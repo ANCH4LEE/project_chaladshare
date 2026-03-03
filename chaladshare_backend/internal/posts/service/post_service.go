@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	fileservice "chaladshare_backend/internal/files/service"
 	friendservice "chaladshare_backend/internal/friends/service"
+
 	"chaladshare_backend/internal/posts/models"
 	"chaladshare_backend/internal/posts/repository"
 )
@@ -33,13 +35,11 @@ type PostService interface {
 type postService struct {
 	postRepo  repository.PostRepository
 	friendSvc friendservice.FriendService
+	fileSvc   fileservice.FileService
 }
 
-func NewPostService(postRepo repository.PostRepository, friendSvc friendservice.FriendService) PostService {
-	return &postService{
-		postRepo:  postRepo,
-		friendSvc: friendSvc,
-	}
+func NewPostService(postRepo repository.PostRepository, friendSvc friendservice.FriendService, fileSvc fileservice.FileService) PostService {
+	return &postService{postRepo: postRepo, friendSvc: friendSvc, fileSvc: fileSvc}
 }
 
 func normalizeVisibility(v string) (string, error) {
@@ -154,7 +154,21 @@ func normalizeTags(in []string) []string {
 }
 
 func (s *postService) DeletePost(postID int) error {
-	return s.postRepo.DeletePost(postID)
+
+	p, err := s.postRepo.GetPostByID(postID)
+	if err != nil {
+		return err
+	}
+	if p == nil {
+		return fmt.Errorf("post not found")
+	}
+	if err := s.postRepo.DeletePost(postID); err != nil {
+		return err
+	}
+	if p.DocumentID != nil && s.fileSvc != nil {
+		_ = s.fileSvc.DeleteFile(*p.DocumentID)
+	}
+	return nil
 }
 
 func (s *postService) GetAllPosts() ([]models.PostResponse, error) {

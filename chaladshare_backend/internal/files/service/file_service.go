@@ -98,7 +98,6 @@ func (s *fileService) UploadFile(req *models.UploadRequest) (*models.UploadRespo
 		pdfPath = "." + savedDoc.DocumentURL
 	}
 
-	// ถ้าใช้ temp file (supabase) แนะนำลบหลัง process เสร็จ
 	go func(docID int, path string, cleanup bool) {
 		s.featureSvc.ProcessDocument(docID, path)
 		if cleanup {
@@ -158,6 +157,12 @@ func (s *fileService) DeleteFile(documentID int) error {
 
 	_ = s.filerepo.DeleteSummariesByDocID(documentID)
 
+	// ลบ document_features
+	if s.featureSvc != nil {
+		_ = s.featureSvc.DeleteByDocumentID(documentID)
+	}
+
+	// ลบ document
 	if err := s.filerepo.DeleteDocument(documentID); err != nil {
 		return fmt.Errorf("ไม่สามารถลบไฟล์ได้: %v", err)
 	}
