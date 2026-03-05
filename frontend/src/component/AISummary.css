@@ -25,6 +25,7 @@
 
 /* ซ้าย: แถบแหล่งข้อมูล */
 .ai-page .ai-source-panel{
+  padding-bottom: 120px;
   background: #eef9ff;        
   background-image: none;     
   border-radius: 18px;
@@ -130,6 +131,8 @@
 
   padding: 6px 4px 0 4px;
   min-height: 516px;
+  /* ✨ หมัดเด็ด: ป้องกันเนื้อหาด้านขวาดันการ์ดด้านซ้ายพัง ✨ */
+  min-width: 0;
 }
 
 /* greeting block */
@@ -175,9 +178,20 @@
   border: 1px solid rgba(2,124,187,.10);
   border-radius: 16px;
   padding: 16px;
-  min-height: 440px;
-  max-height: 520px;
+
+  /* ✅ สูงเท่าฝั่งซ้าย */
+  min-height: 516px;
+  height: 516px;
+
   overflow: auto;
+
+  /* ✅ ตัวหนังสือเล็กลง */
+  font-size: 15px;
+  line-height: 1.6;
+
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
 /* ปรับตัวหนังสือจาก HTML ที่ backend ส่งมาให้อ่านเข้ากับหน้า */
@@ -186,3 +200,157 @@
 .ai-page .ai-summary-render h3 { margin-top: 14px; }
 .ai-page .ai-summary-render ul { margin: 8px 0 10px 18px; }
 
+/* wrapper เพื่อให้ปุ่มลอยมุมขวาบนเฉพาะตอนมีผลสรุป */
+.ai-output-wrap {
+  position: relative;
+}
+
+/* ปุ่มกลมๆ แบบ reuse */
+.ai-resummarize-btn {
+  position: absolute;
+  top: 14px;
+  right: 26px;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid rgba(11, 83, 148, 0.25);
+  background: #ffffff;
+  color: #0b5394;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  z-index: 5;
+}
+
+.ai-resummarize-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+  background: rgba(110, 193, 255, 0.12);
+}
+
+.ai-resummarize-btn:active {
+  transform: translateY(0px) scale(0.98);
+}
+
+.ai-resummarize-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+/* ปุ่มสรุปใหม่แบบมีข้อความ */
+.ai-resummarize-inline {
+  margin-top: 14px;
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  padding: 10px 14px;
+  border-radius: 12px;
+
+  border: 1px solid rgba(11, 83, 148, 0.25);
+  background: #f3f9ff;
+  color: #0b5394;
+  font-weight: 700;
+
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ai-resummarize-inline:hover {
+  background: #e6f3ff;
+  transform: translateY(-1px);
+}
+
+.ai-resummarize-inline:active {
+  transform: scale(0.98);
+}
+
+.ai-resummarize-inline:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+
+/* กล่องคำแนะนำ: ติดล่าง + ไม่อยู่ในกรอบขาว */
+.ai-page .ai-tip{
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+
+  background: rgba(255,255,255,0.65);
+  border: 1px solid rgba(2,124,187,.12);
+  border-radius: 14px;
+  padding: 12px 12px;
+
+  box-shadow: 0 10px 18px rgba(0,0,0,.06);
+}
+
+.ai-page .ai-tip-title{
+  font-weight: 900;
+  color: #0b5394;
+  margin-bottom: 6px;
+}
+
+.ai-page .ai-tip-text{
+  font-size: 13px;
+  line-height: 1.45;
+  color: #334155;
+}
+
+
+/* ⭐ AI Loading Star (float up-down แบบ AI) */
+
+.ai-page .ai-output-panel {
+  position: relative;
+}
+
+.ai-page .ai-loading-box {
+  position: absolute;
+  inset: 0;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  pointer-events: none;
+}
+
+/* ดาว */
+.ai-page .ai-loading-box svg {
+  width: 80px;
+  height: 80px;
+
+  animation: aiStarFloat 1.6s ease-in-out infinite;
+
+  /* glow นุ่ม ๆ */
+  filter:
+    drop-shadow(0 10px 18px rgba(11,83,148,.15))
+    drop-shadow(0 0 18px rgba(110,193,255,.35))
+    drop-shadow(0 0 26px rgba(255,122,162,.25));
+}
+
+/* ลอยขึ้นลง */
+@keyframes aiStarFloat {
+
+  0% {
+    transform: translateY(-8px);
+  }
+
+  50% {
+    transform: translateY(10px);
+  }
+
+  100% {
+    transform: translateY(-8px);
+  }
+
+}
