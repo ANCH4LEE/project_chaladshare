@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { IoSearch } from "react-icons/io5";
-// import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
 import Sidebar from "./Sidebar";
 import axios from "axios";
@@ -40,6 +40,8 @@ const Friends = () => {
 
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const isSearching = activeTab === "my" && query.trim().length > 0;
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchMe = async () => {
@@ -199,6 +201,12 @@ const Friends = () => {
     }
   };
 
+  const goToProfile = (userId) => {
+    if (userId) {
+      navigate(`/profile/${userId}`);
+    }
+  };
+
   const items = isSearching ? searchUsers : friends;
   const total = isSearching ? searchTotal : totalFriends;
   const loadingList = isSearching ? loadingSearch : loadingFriends;
@@ -300,7 +308,12 @@ const Friends = () => {
                   <ul className="friends-list">
                     {items.map((u) => (
                       <li key={u.user_id} className="friends-item">
-                        <div className="friends-left">
+                        <div
+                          className="friends-left"
+                          onClick={() => goToProfile(u.user_id)}
+                          style={{ cursor: "pointer" }}
+                          title="ไปที่โปรไฟล์"
+                        >
                           <img
                             className="friends-avatar"
                             src={toAbsUrl(u.avatar) || picdefault}
@@ -415,7 +428,7 @@ const Friends = () => {
             </>
           )}
 
-          {/* TAB: requests */}
+          {/* TAB requests */}
           {activeTab === "requests" && (
             <>
               {loadingReq && (
@@ -426,7 +439,13 @@ const Friends = () => {
                 <ul className="friends-list">
                   {incoming.map((r) => (
                     <li key={r.request_id} className="friends-item">
-                      <div className="friends-left">
+                      {/* เพิ่ม onClick และ style ตรงนี้ */}
+                      <div
+                        className="friends-left"
+                        onClick={() => goToProfile(r.requester_user_id)}
+                        style={{ cursor: "pointer" }}
+                        title="ไปที่โปรไฟล์"
+                      >
                         <img
                           className="friends-avatar"
                           src={toAbsUrl(r.avatar) || picdefault}

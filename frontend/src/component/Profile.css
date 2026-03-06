@@ -537,8 +537,8 @@ height: 100vh + overflow-y: scroll
 
 /* --- FOLLOW (Figma: blue filled) --- */
 .profile-page .btn-follow {
-  background: var(--primary);
-  color: #ffffff;
+  background: #ffffff;
+  color: var(--primary);
   border: 1px solid var(--primary);
 }
 
@@ -546,12 +546,13 @@ height: 100vh + overflow-y: scroll
   filter: brightness(0.96);
 }
 
-/* FOLLOWING state (current screenshot: grey) */
+/* FOLLOWING state*/
 .profile-page .btn-follow.is-following {
-  background: #f1f5f9;
-  color: #64748b;
-  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: var(--primary);
+  border: 1px solid var(--primary);
 }
+
 
 /* --- FRIEND (Figma: green outline) --- */
 .profile-page .btn-friend {
@@ -564,9 +565,8 @@ height: 100vh + overflow-y: scroll
   filter: brightness(0.98);
 }
 
-/* requested / friends -> disabled look (greyed like Figma) */
+/* requested / friends -> disabled look greyed  */
 .profile-page .btn-friend.is-requested,
-.profile-page .btn-friend.is-friends,
 .profile-page .btn-friend:disabled {
   background: #f3f4f6;
   color: #9ca3af;
@@ -574,6 +574,13 @@ height: 100vh + overflow-y: scroll
   cursor: not-allowed;
   transform: none;
   filter: none;
+}
+
+/* สถานะเป็นเพื่อนแล้ว  */
+.profile-page .btn-friend.is-friends {
+  color: #22c55e;
+  border: 1px solid #22c55e;
+  cursor: pointer;
 }
 
 .btn-friend.is-incoming {
@@ -596,18 +603,6 @@ height: 100vh + overflow-y: scroll
 /* idle = เขียว (ถ้าของเดิมมีอยู่แล้ว อันนี้จะทับตามลำดับในไฟล์) */
 .btn-friend {
   background: #22c55e;
-  color: #fff;
-}
-
-/* requested = ส้ม */
-.btn-friend.is-requested {
-  background: #f59e0b;
-  color: #fff;
-}
-
-/* friends = ฟ้า */
-.btn-friend.is-friends {
-  background: #0284c7;
   color: #fff;
 }
 
