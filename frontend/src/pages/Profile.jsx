@@ -173,27 +173,27 @@ const Profile = () => {
         bio: editForm.bio,
         avatar: avatarPreview || fullAvatarUrl || p.avatar,
       }));
-       notifySuccess("แก้ไขโปรไฟล์สำเร็จ", 2500);
+      notifySuccess("แก้ไขโปรไฟล์สำเร็จ", 2500);
 
-       setIsEditing(false);
-     } catch (e) {
-  const raw =
-    e?.response?.data?.error ||
-    e?.response?.data?.message ||
-    e?.message ||
-    "บันทึกล้มเหลว";
+      setIsEditing(false);
+    } catch (e) {
+      const raw =
+        e?.response?.data?.error ||
+        e?.response?.data?.message ||
+        e?.message ||
+        "บันทึกล้มเหลว";
 
-  const msg =
-    String(raw).includes("users_username_key") ||
-    String(raw).toLowerCase().includes("duplicate key") ||
-    String(raw).includes("23505")
-      ? "ชื่อผู้ใช้นี้ถูกใช้งานแล้ว"
-      : raw;
+      const msg =
+        String(raw).includes("users_username_key") ||
+        String(raw).toLowerCase().includes("duplicate key") ||
+        String(raw).includes("23505")
+          ? "ชื่อผู้ใช้นี้ถูกใช้งานแล้ว"
+          : raw;
 
-  setSaveErr(msg);
-} finally {
-  setSaving(false);
-}
+      setSaveErr(msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const [posts, setPosts] = useState([]);
@@ -203,10 +203,10 @@ const Profile = () => {
   const [followStatus, setFollowStatus] = useState("idle");
   const [friendStatus, setFriendStatus] = useState("idle");
 
-  // ✅ dropdown ของปุ่มเพื่อน
+  // dropdown ของปุ่มเพื่อน
   const [friendMenuOpen, setFriendMenuOpen] = useState(false);
 
-  // ✅ ปิด dropdown เมื่อคลิกข้างนอก
+  // ปิด dropdown เมื่อคลิกข้างนอก
   useEffect(() => {
     const onDocClick = (e) => {
       if (!e.target.closest(".friend-dropdown-wrap")) {
@@ -227,50 +227,50 @@ const Profile = () => {
   };
 
   // แก้ไข ลบโพสต์
-const [deleteOpen, setDeleteOpen] = useState(false);
-const [deleteTarget, setDeleteTarget] = useState(null); // เก็บ post ที่จะลบ
-const [deleting, setDeleting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null); // เก็บ post ที่จะลบ
+  const [deleting, setDeleting] = useState(false);
 
-const handleEditPost = (event, post) => {
-  event.stopPropagation();
-  if (!post?.id) return;
-  navigate(`/posts/${post.id}/edit`);
-};
+  const handleEditPost = (event, post) => {
+    event.stopPropagation();
+    if (!post?.id) return;
+    navigate(`/posts/${post.id}/edit`);
+  };
 
-// ✅ เปลี่ยนจากลบทันที -> เปิด popup ยืนยัน
-const handleDeletePost = (event, post) => {
-  event.stopPropagation();
-  if (!post?.id) return;
-  setDeleteTarget(post);
-  setDeleteOpen(true);
-};
+  // เปลี่ยนจากลบทันที -> เปิด popup ยืนยัน
+  const handleDeletePost = (event, post) => {
+    event.stopPropagation();
+    if (!post?.id) return;
+    setDeleteTarget(post);
+    setDeleteOpen(true);
+  };
 
-// ✅ กด “ลบโพสต์” ใน popup ถึงจะลบจริง
-const confirmDelete = async () => {
-  if (!deleteTarget?.id) return;
+  // กดลบโพสต์ใน popup ถึงจะลบจริง
+  const confirmDelete = async () => {
+    if (!deleteTarget?.id) return;
 
-  try {
-    setDeleting(true);
+    try {
+      setDeleting(true);
 
-    await axios.delete(`/posts/${deleteTarget.id}`);
+      await axios.delete(`/posts/${deleteTarget.id}`);
 
-    setPosts((list) => list.filter((p) => p.id !== deleteTarget.id));
-    setProfile((p) => ({
-      ...p,
-      posts: Math.max(0, (p.posts ?? 0) - 1),
-    }));
+      setPosts((list) => list.filter((p) => p.id !== deleteTarget.id));
+      setProfile((p) => ({
+        ...p,
+        posts: Math.max(0, (p.posts ?? 0) - 1),
+      }));
 
-    setDeleteOpen(false);
-    setDeleteTarget(null);
+      setDeleteOpen(false);
+      setDeleteTarget(null);
 
-    notifySuccess("ลบโพสต์สำเร็จ", 2500);
-  } catch (e) {
-    const msg = e?.response?.data?.error || "ลบโพสต์ไม่สำเร็จ";
-    notifyError(msg, 2500);
-  } finally {
-    setDeleting(false);
-  }
-};
+      notifySuccess("ลบโพสต์สำเร็จ", 2500);
+    } catch (e) {
+      const msg = e?.response?.data?.error || "ลบโพสต์ไม่สำเร็จ";
+      notifyError(msg, 2500);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // โหลด myId
   useEffect(() => {
@@ -425,6 +425,8 @@ const confirmDelete = async () => {
             setFriendStatus("friends");
           } else if (rel.friend_request_outgoing) {
             setFriendStatus("requested");
+          } else if (rel.friend_request_incoming) {
+            setFriendStatus("incoming");
           } else {
             setFriendStatus("idle");
           }
@@ -478,7 +480,24 @@ const confirmDelete = async () => {
           return String(toId) === String(targetId);
         });
 
+        const incomingRes = await axios.get("/social/requests/incoming", {
+          params: { page: 1, size: 500 },
+        });
+        const incomingItems = incomingRes.data.items || [];
+
+        const hasIncoming = incomingItems.some((r) => {
+          const fromId =
+            r.requester_user_id ??
+            r.requester_id ??
+            r.from_user_id ??
+            r.sender_id ??
+            r.user_id;
+
+          return String(fromId) === String(targetId);
+        });
+
         if (hasOutgoing) setFriendStatus("requested");
+        else if (hasIncoming) setFriendStatus("incoming");
         else setFriendStatus("idle");
       } catch (e) {
         console.error(
@@ -523,6 +542,80 @@ const confirmDelete = async () => {
     try {
       await axios.post("/social/requests", { to_user_id: Number(targetId) });
       setFriendStatus("requested");
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const onAcceptFriendRequest = async () => {
+    if (isOwn || !targetId) return;
+
+    try {
+      const incomingRes = await axios.get("/social/requests/incoming", {
+        params: { page: 1, size: 500 },
+      });
+      const items = incomingRes?.data?.items || [];
+
+      const req = items.find((r) => {
+        const fromId =
+          r.requester_user_id ??
+          r.requester_id ??
+          r.from_user_id ??
+          r.sender_id ??
+          r.user_id;
+
+        return String(fromId) === String(targetId);
+      });
+
+      if (!req) {
+        setFriendStatus("idle");
+        setFriendMenuOpen(false);
+        return;
+      }
+
+      const requestId = req.request_id ?? req.friend_request_id ?? req.id;
+      if (!requestId) return;
+
+      await axios.post(`/social/requests/${requestId}/accept`);
+      setFriendStatus("friends");
+      setFriendMenuOpen(false);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const onRejectFriendRequest = async () => {
+    if (isOwn || !targetId) return;
+
+    try {
+      const incomingRes = await axios.get("/social/requests/incoming", {
+        params: { page: 1, size: 500 },
+      });
+      const items = incomingRes?.data?.items || [];
+
+      const req = items.find((r) => {
+        const fromId =
+          r.requester_user_id ??
+          r.requester_id ??
+          r.from_user_id ??
+          r.sender_id ??
+          r.user_id;
+
+        return String(fromId) === String(targetId);
+      });
+
+      if (!req) {
+        setFriendStatus("idle");
+        setFriendMenuOpen(false);
+        return;
+      }
+
+      const requestId = req.request_id ?? req.friend_request_id ?? req.id;
+      if (!requestId) return;
+
+      await axios.post(`/social/requests/${requestId}/reject`);
+      setFriendStatus("idle");
+      setFriendMenuOpen(false);
     } catch (e) {
       console.error(e);
     }
@@ -652,7 +745,9 @@ const confirmDelete = async () => {
                               ? "is-friends"
                               : friendStatus === "requested"
                                 ? "is-requested"
-                                : ""
+                                : friendStatus === "incoming"
+                                  ? "is-incoming"
+                                  : ""
                           }`}
                           onClick={() => {
                             if (friendStatus === "idle") onAddFriend();
@@ -663,11 +758,14 @@ const confirmDelete = async () => {
                             ? "เพื่อน"
                             : friendStatus === "requested"
                               ? "กำลังรอการตอบรับ"
-                              : "+ เพิ่มเพื่อน"}
+                              : friendStatus === "incoming"
+                                ? "มีคำขอเป็นเพื่อน"
+                                : "+ เพิ่มเพื่อน"}
                         </button>
 
                         {(friendStatus === "requested" ||
-                          friendStatus === "friends") &&
+                          friendStatus === "friends" ||
+                          friendStatus === "incoming") &&
                           friendMenuOpen && (
                             <div className="friend-dropdown">
                               {friendStatus === "requested" && (
@@ -678,6 +776,25 @@ const confirmDelete = async () => {
                                 >
                                   ยกเลิกคำขอ
                                 </button>
+                              )}
+
+                              {friendStatus === "incoming" && (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="friend-dropdown-item"
+                                    onClick={onAcceptFriendRequest}
+                                  >
+                                    ยอมรับคำขอ
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="friend-dropdown-item danger"
+                                    onClick={onRejectFriendRequest}
+                                  >
+                                    ปฏิเสธคำขอ
+                                  </button>
+                                </>
                               )}
 
                               {friendStatus === "friends" && (
@@ -740,10 +857,7 @@ const confirmDelete = async () => {
 
                     <div className="edit-field">
                       <label>อีเมล</label>
-                      <input type="email" 
-                      value={editForm.email} 
-                      readOnly
-                      />
+                      <input type="email" value={editForm.email} readOnly />
                     </div>
 
                     <div className="edit-field">
@@ -952,49 +1066,49 @@ const confirmDelete = async () => {
               )}
             </section>
 
-          {deleteOpen && (
-            <div
-              className="modal-overlay"
-              onClick={() => {
-                if (deleting) return;
-                setDeleteOpen(false);
-                setDeleteTarget(null);
-              }}
-            >
+            {deleteOpen && (
               <div
-                className="modal-card"
-                role="dialog"
-                aria-modal="true"
-                onClick={(e) => e.stopPropagation()}
+                className="modal-overlay"
+                onClick={() => {
+                  if (deleting) return;
+                  setDeleteOpen(false);
+                  setDeleteTarget(null);
+                }}
               >
-                <h3 className="modal-title">ยืนยันการลบโพสต์</h3>
-                <p className="modal-desc">
-                  คุณต้องการลบโพสต์ <b>{deleteTarget?.title || ""}</b> ใช่ไหม?
-                </p>
+                <div
+                  className="modal-card"
+                  role="dialog"
+                  aria-modal="true"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h3 className="modal-title">ยืนยันการลบโพสต์</h3>
+                  <p className="modal-desc">
+                    คุณต้องการลบโพสต์ <b>{deleteTarget?.title || ""}</b> ใช่ไหม?
+                  </p>
 
-                <div className="modal-actions">
-                  <button
-                    className="modal-btn"
-                    onClick={() => {
-                      setDeleteOpen(false);
-                      setDeleteTarget(null);
-                    }}
-                    disabled={deleting}
-                  >
-                    ยกเลิก
-                  </button>
+                  <div className="modal-actions">
+                    <button
+                      className="modal-btn"
+                      onClick={() => {
+                        setDeleteOpen(false);
+                        setDeleteTarget(null);
+                      }}
+                      disabled={deleting}
+                    >
+                      ยกเลิก
+                    </button>
 
-                  <button
-                    className="modal-btn danger"
-                    onClick={confirmDelete}
-                    disabled={deleting}
-                  >
-                    {deleting ? "กำลังลบ..." : "ลบโพสต์"}
-                  </button>
+                    <button
+                      className="modal-btn danger"
+                      onClick={confirmDelete}
+                      disabled={deleting}
+                    >
+                      {deleting ? "กำลังลบ..." : "ลบโพสต์"}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
           </div>
         </main>
       </div>

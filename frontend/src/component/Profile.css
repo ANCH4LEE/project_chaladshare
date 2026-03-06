@@ -576,6 +576,17 @@ height: 100vh + overflow-y: scroll
   filter: none;
 }
 
+.btn-friend.is-incoming {
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+}
+
+.btn-friend.is-incoming:hover {
+  background: #e5e7eb;
+  color: #4b5563;
+  border-color: #cbd5e1;
+}
 
 /* ===== Friend button states ===== */
 .btn-friend {
