@@ -156,10 +156,8 @@ func main() {
 
 	// recommend
 	recommendRepo := RecommendRepo.NewRecommendRepo(db.GetDB())
-	recommendReadRepo := RecommendRepo.NewRecommendReadRepo(db.GetDB())
-
 	recommendService := RecommendService.NewRecommendService(recommendRepo, aiClient)
-	recommendHandler := RecommendHandler.NewRecommendHandler(recommendService, recommendReadRepo)
+	recommendHandler := RecommendHandler.NewRecommendHandler(recommendService, recommendRepo)
 
 	// post like save
 	postRepository := PostRepo.NewPostRepository(db.GetDB())

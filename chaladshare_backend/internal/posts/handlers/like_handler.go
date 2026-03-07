@@ -15,7 +15,7 @@ type RecommendHook interface {
 
 type LikeHandler struct {
 	likeService      service.LikeService
-	recommendService RecommendHook // อาจเป็น nil ได้
+	recommendService RecommendHook
 }
 
 func NewLikeHandler(likeService service.LikeService, recommendService RecommendHook) *LikeHandler {
@@ -44,7 +44,8 @@ func (h *LikeHandler) ToggleLike(c *gin.Context) {
 		return
 	}
 
-	if isLiked && h.recommendService != nil {
+	// เรียกทุกครั้งหลัง toggle สำเร็จ ทั้ง like และ unlike
+	if h.recommendService != nil {
 		h.recommendService.OnLikeHook(uid)
 	}
 

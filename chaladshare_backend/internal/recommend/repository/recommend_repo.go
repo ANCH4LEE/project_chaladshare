@@ -22,6 +22,9 @@ type RecommendRepo interface {
 	ListCandidatesBySeedPairs(userID int, pairs []SeedPair, limit int) ([]recmodels.CandidateItem, error)
 	ReplaceUserRecommendations(userID int, recs []recmodels.ColabRecommendItem) error
 
+	CountUserLikes(userID int) (int, error)
+	ClearUserRecommendations(userID int) error
+
 	ListRecommendedPosts(viewerID int, limit int) ([]postmodels.PostResponse, error)
 }
 
@@ -121,22 +124,34 @@ func (r *repo) ListCandidatesBySeedPairs(userID int, pairs []SeedPair, limit int
 		return []recmodels.CandidateItem{}, nil
 	}
 
+	uniqLabels := map[string]struct{}{}
+	for _, p := range pairs {
+		if p.Label != "" {
+			uniqLabels[p.Label] = struct{}{}
+		}
+	}
+	if len(uniqLabels) == 0 {
+		return []recmodels.CandidateItem{}, nil
+	}
+
 	args := []any{userID}
 	var b strings.Builder
 
 	b.WriteString(`
-WITH seed_pairs(style_label, cluster_id) AS (
+WITH seed_labels(style_label) AS (
   VALUES
 `)
 
 	argPos := 2
-	for i, p := range pairs {
+	i := 0
+	for label := range uniqLabels {
 		if i > 0 {
 			b.WriteString(",")
 		}
-		b.WriteString(fmt.Sprintf(" ($%d::text, $%d::int)", argPos, argPos+1))
-		args = append(args, p.Label, p.CID)
-		argPos += 2
+		b.WriteString(fmt.Sprintf(" ($%d::text)", argPos))
+		args = append(args, label)
+		argPos++
+		i++
 	}
 
 	b.WriteString(`
@@ -167,15 +182,14 @@ WHERE p.post_document_id IS NOT NULL
       p.post_visibility = 'friends'
       AND EXISTS (
         SELECT 1 FROM friendships f
-        WHERE f.user_id  = LEAST($1, p.post_author_user_id)
+        WHERE f.user_id = LEAST($1, p.post_author_user_id)
           AND f.friend_id = GREATEST($1, p.post_author_user_id)
       )
     )
   )
   AND EXISTS (
-    SELECT 1 FROM seed_pairs sp
-    WHERE sp.style_label = df.style_label
-      AND sp.cluster_id  = df.cluster_id
+    SELECT 1 FROM seed_labels sl
+    WHERE sl.style_label = df.style_label
   )
 ORDER BY p.post_created_at DESC
 LIMIT ` + fmt.Sprintf("%d", limit) + `;
@@ -246,6 +260,24 @@ DO UPDATE SET score = EXCLUDED.score, seed_document_id = EXCLUDED.seed_document_
 	}
 
 	return tx.Commit()
+}
+
+func (r *repo) CountUserLikes(userID int) (int, error) {
+	var n int
+	err := r.db.QueryRow(`
+		SELECT COUNT(*)
+		FROM likes
+		WHERE like_user_id = $1;
+	`, userID).Scan(&n)
+	return n, err
+}
+
+func (r *repo) ClearUserRecommendations(userID int) error {
+	_, err := r.db.Exec(`
+		DELETE FROM recommendations
+		WHERE rec_user_id = $1;
+	`, userID)
+	return err
 }
 
 func (r *repo) ListRecommendedPosts(viewerID int, limit int) ([]postmodels.PostResponse, error) {

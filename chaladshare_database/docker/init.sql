@@ -316,4 +316,7 @@ CREATE TABLE IF NOT EXISTS recommendations (
 CREATE INDEX IF NOT EXISTS ix_recommendations_user_time
 ON recommendations (rec_user_id, created_at DESC);
 
+CREATE INDEX IF NOT EXISTS ix_recommendations_user_score_time
+ON recommendations (rec_user_id, score DESC, created_at DESC);
+
 commit;

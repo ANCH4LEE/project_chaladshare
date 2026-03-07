@@ -1,4 +1,3 @@
-// internal/recommend/handlers/recommend_handler.go
 package handlers
 
 import (
@@ -13,10 +12,10 @@ import (
 
 type RecommendHandler struct {
 	svc  recommendservice.RecommendService
-	repo recommendrepo.RecommendReadRepo
+	repo recommendrepo.RecommendRepo
 }
 
-func NewRecommendHandler(svc recommendservice.RecommendService, repo recommendrepo.RecommendReadRepo) *RecommendHandler {
+func NewRecommendHandler(svc recommendservice.RecommendService, repo recommendrepo.RecommendRepo) *RecommendHandler {
 	return &RecommendHandler{svc: svc, repo: repo}
 }
 
@@ -27,21 +26,14 @@ func (h *RecommendHandler) GetRecommend(c *gin.Context) {
 		return
 	}
 
-	limit := 20
-	offset := 0
-
+	limit := 3
 	if s := c.Query("limit"); s != "" {
-		if v, err := strconv.Atoi(s); err == nil && v > 0 && v <= 100 {
+		if v, err := strconv.Atoi(s); err == nil && v > 0 && v <= 20 {
 			limit = v
 		}
 	}
-	if s := c.Query("offset"); s != "" {
-		if v, err := strconv.Atoi(s); err == nil && v >= 0 {
-			offset = v
-		}
-	}
 
-	items, err := h.repo.ListUserRecommendations(uid, limit, offset)
+	items, err := h.repo.ListRecommendedPosts(uid, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
