@@ -91,7 +91,7 @@ create index if not exists ix_email_verifications_active
   on email_verifications (lower(email), expires_at)
   where used_at is null;
 
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
 -- เพิ่มตารางหัวข้อให้มาก่อน user_interests
 create table if not exists topics (
     topic_id   serial primary key,
@@ -105,7 +105,7 @@ create table if not exists user_interests (
     interest_created_at timestamptz default now(),                             -- เวลาเพิ่มความสนใจ
     primary key (interest_user_id, interest_topic_id)                          -- กันซ้ำ user เลือก topic เดิม
 );
-
+----------------------------------------------------------------------------------------------------------------
 -- ตารางเก็บการติดตาม (Follow)
 create table if not exists follows (
     follower_user_id   integer references users(user_id) on delete cascade, -- คนที่กดติดตาม
