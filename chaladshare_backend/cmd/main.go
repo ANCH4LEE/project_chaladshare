@@ -218,16 +218,16 @@ func main() {
 	r.Use(TimeoutMiddleware(180 * time.Second))
 
 	r.MaxMultipartMemory = 100 << 20
-	// uploadDir := os.Getenv("UPLOAD_DIR")
-	// if uploadDir == "" {
-	// 	uploadDir = "/tmp/uploads"
-	// }
-	// if err := os.MkdirAll(uploadDir, 0755); err != nil {
-	// 	log.Printf("WARNING: cannot create upload dir (%s): %v", uploadDir, err)
-	// }
-	// r.Static("/uploads", uploadDir)
+	uploadDir := os.Getenv("UPLOAD_DIR")
+	if uploadDir == "" {
+		uploadDir = "/tmp/uploads"
+	}
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		log.Printf("WARNING: cannot create upload dir (%s): %v", uploadDir, err)
+	}
+	r.Static("/uploads", uploadDir)
 
-	r.Static("/uploads", "./uploads")
+	// r.Static("/uploads", "./uploads")
 
 	// 	if err := os.MkdirAll("uploads", 0755); err != nil {
 	// 		log.Fatalf("cannot create uploads dir: %v", err)
